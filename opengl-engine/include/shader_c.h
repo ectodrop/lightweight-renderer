@@ -12,6 +12,29 @@ class Shader {
             std::string content = loadFile(computeShaderPath);
             const char* source = content.c_str();
 
+            int success;
+            char infoLog[512];
+            unsigned int computeShader;
+            computeShader = glCreateShader(GL_COMPUTE_SHADER);
+            glShaderSource(computeShader, 1, &source, NULL);
+            glCompileShader(computeShader);
+            glGetShaderiv(computeShader, GL_COMPILE_STATUS, &success);
+            if (!success) {
+                glGetShaderInfoLog(computeShader, 512, NULL, infoLog);
+                std::cout << "Error Compiling Vertex Shader: " << infoLog << std::endl;
+                exit(-1);
+            }
+            unsigned int computeProgram;
+            computeProgram = glCreateProgram();
+            glAttachShader(computeProgram, computeShader);
+            glLinkProgram(computeProgram);
+            glGetProgramiv(computeProgram, GL_LINK_STATUS, &success);
+            if (!success) {
+                glGetProgramInfoLog(computeProgram, 512, NULL, infoLog);
+                std::cout << "Error Linking Shaders: " << infoLog << std::endl;
+                exit(-1);
+            }
+            ID = computeProgram;
         }
         Shader(const char* vertexShaderPath, const char* fragmentShaderPath) {
             // >>>> COMPILE SHADER <<<<<
@@ -60,8 +83,8 @@ class Shader {
             glLinkProgram(shaderProgram);
             glGetProgramiv(shaderProgram, GL_LINK_STATUS, &success);
             if (!success) {
-            glGetProgramInfoLog(fragmentShader, 512, NULL, infoLog);
-            std::cout << "Error Linking Shaders: " << infoLog << std::endl;
+                glGetProgramInfoLog(shaderProgram, 512, NULL, infoLog);
+                std::cout << "Error Linking Shaders: " << infoLog << std::endl;
             }
             // glUseProgram(shaderProgram);
             // delete the vertex and fragment shaders, not needed after linking
@@ -72,25 +95,37 @@ class Shader {
         void use() {
             glUseProgram(ID);
         }
+        void useCompute(int groupX, int groupY, int groupZ) {
+            this->use();
+            glDispatchCompute((GLuint)groupX, (GLuint)groupY, (GLuint)groupZ);
+            glMemoryBarrier(GL_ALL_BARRIER_BITS);
+        }
         void setFloat(const char *name, float val) {
+            this->use();
             glUniform1f(glGetUniformLocation(ID, name), val);
         }
         void setInt(const char *name, int val) {
+            this->use();
             glUniform1i(glGetUniformLocation(ID, name), val);
         }
         void setBool(const char *name, bool val) {
+            this->use();
             glUniform1i(glGetUniformLocation(ID, name), (int)val);
         }
         void setVec4(const char *name, float x, float y, float z, float w) {
+            this->use();
             glUniform4f(glGetUniformLocation(ID, name), x, y, z, w);
         }
         void setVec3(const char *name, float x, float y, float z) {
+            this->use();
             glUniform3f(glGetUniformLocation(ID, name), x, y, z);
         }
         void setVec2(const char *name, float x, float y) {
+            this->use();
             glUniform2f(glGetUniformLocation(ID, name), x, y);
         }
         void setMat4(const char *name, GLboolean transpose, float *value) {
+            this->use();
             glUniformMatrix4fv(glGetUniformLocation(ID, name), 1, transpose, value);
         }
         void free() {

@@ -18,11 +18,11 @@
 
 class Mesh3D {
   private:
-    unsigned int VAO = 0, VBO = 0, EBO = 0;
     int numVertices = 0, numIndicies = 0;
     std::vector<Texture> textures;
     std::vector<float> vertexData;
   public:
+      unsigned int VAO = 0, VBO = 0, EBO = 0;
     glm::mat4 transform = glm::mat4(1.0f);
     Mesh3D (std::vector<float> vertices, std::vector<int> attrSizeOrder) {
       int numVals = vertices.size();
@@ -55,10 +55,10 @@ class Mesh3D {
 
       // now it's safe to unbind the array buffer since when we call glVertexAttribPointer
       // it stores which VBO we were using in the currently bound VAO, after which it doesn't matter which VBO is bounded
-      // glBindBuffer(GL_ARRAY_BUFFER, 0); 
+       //glBindBuffer(GL_ARRAY_BUFFER, 0); 
       // "unbinds" the vertex array object, in case we make any more calls to
       // glVertexAttribPointer, glEnableVertexAttribArray etc. this rarely happens though
-      // glBindVertexArray(0);
+       //glBindVertexArray(0);
     }
     Mesh3D (std::vector<float> vertices, std::vector<int> attrSizeOrder, Texture texture) : Mesh3D(vertices, attrSizeOrder) {
       std::vector<Texture> textures;
@@ -100,7 +100,7 @@ class Mesh3D {
         std::string name = "texture" + std::to_string(i);
         shader.setInt(name.c_str(), i);
       }
-			glm::mat4 view, clip;
+	    glm::mat4 view, clip;
       view = camera.viewMatrix();
       clip = camera.clipMatrix();
       shader.setMat4("model", GL_FALSE, glm::value_ptr(transform));

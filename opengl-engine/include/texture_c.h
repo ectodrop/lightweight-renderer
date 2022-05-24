@@ -20,6 +20,9 @@ class Texture {
     int width, height, nrChannels;
   public:
     unsigned int id;
+    Texture(unsigned int texId) {
+        id = texId;
+    }
     Texture (const char* texPath, int channel_type = GL_RGB, bool flip_vertical = true) {
       stbi_set_flip_vertically_on_load(flip_vertical);
       unsigned int texture;

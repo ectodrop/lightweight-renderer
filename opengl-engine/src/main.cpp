@@ -23,7 +23,7 @@
 #include <glm/gtx/string_cast.hpp>
 
 
-Camera camera(glm::vec3(0.0f, 0.0f, 3.0f),
+Camera camera(glm::vec3(0.0f, 0.0f, 0.0f),
 	glm::vec3(0.0f, 0.0f, -1.0f),
 	glm::vec3(0.0f, 1.0f, 0.0f),
 	INITIAL_WIDTH,
@@ -33,17 +33,17 @@ Camera camera(glm::vec3(0.0f, 0.0f, 3.0f),
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
 
-double prevMouseX = INITIAL_WIDTH/2.0;
-double prevMouseY = INITIAL_HEIGHT/2.0;
+double prevMouseX = INITIAL_WIDTH / 2.0;
+double prevMouseY = INITIAL_HEIGHT / 2.0;
 bool firstMouseMove = true;
 // callback to change the viewport size if the window is resized
 // window is unused parameter
-void framebuffer_size_callback(GLFWwindow *window, int width, int height) {
+void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
 	glViewport(0, 0, width, height);
 	camera.width = width;
 	camera.height = height;
 }
-void mouse_callback(GLFWwindow *window, double xPos, double yPos) {
+void mouse_callback(GLFWwindow* window, double xPos, double yPos) {
 	if (firstMouseMove) {
 		prevMouseX = xPos;
 		prevMouseY = yPos;
@@ -55,11 +55,11 @@ void mouse_callback(GLFWwindow *window, double xPos, double yPos) {
 	prevMouseY = yPos;
 	// std:: cout << dx << " " << dy <<  std::endl;
 	float sensitivity = 0.1f;
-	camera.rotate(dy*-1.0f*sensitivity, dx*sensitivity);
+	camera.rotate(dy * -1.0f * sensitivity, dx * sensitivity);
 }
 
 // normal mousewheels only provide y offset
-void scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
+void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
 	camera.fov += yoffset * -1;
 	if (camera.fov < 1.0f) {
 		camera.fov = 1.0f;
@@ -68,7 +68,7 @@ void scroll_callback(GLFWwindow *window, double xoffset, double yoffset) {
 		camera.fov = 45.0f;
 	}
 }
-void processInput(GLFWwindow *window) {
+void processInput(GLFWwindow* window) {
 	float movementSpeed = 5.0f * deltaTime;
 	if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) {
 		movementSpeed *= 5.0f;
@@ -101,7 +101,7 @@ void processInput(GLFWwindow *window) {
 	if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) {
 		camera.translate(camera.up * -1.0f * movementSpeed);
 	}
-	
+
 	// std::cout << glm::to_string(camera.cameraPos) << std::endl;
 }
 
@@ -113,7 +113,7 @@ unsigned int loadCubemap(std::vector<std::string> faces) {
 	glBindTexture(GL_TEXTURE_CUBE_MAP, textureID);
 	int width, height, nrChannels;
 	for (int i = 0; i < 6; i++) {
-		unsigned char *data = stbi_load(faces[i].c_str(), &width, &height, &nrChannels, 0);
+		unsigned char* data = stbi_load(faces[i].c_str(), &width, &height, &nrChannels, 0);
 		if (data) {
 			glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
 		}
@@ -132,13 +132,13 @@ unsigned int loadCubemap(std::vector<std::string> faces) {
 	return textureID;
 }
 
-std::vector<float> genTorus(float inner, float outer, std::vector<float> &vertices, std::vector<unsigned int> &indices) {
+std::vector<float> genTorus(float inner, float outer, std::vector<float>& vertices, std::vector<unsigned int>& indices) {
 	int slices = 40;
-	int sliceVertices = 40;	
+	int sliceVertices = 40;
 	float thickness = outer - inner;
-	float center = outer - (thickness/2);
+	float center = outer - (thickness / 2);
 	for (int slice = 0; slice < slices; slice++) {
-		float yaw = slice *((M_PI * 2.0f) / (float)slices);
+		float yaw = slice * ((M_PI * 2.0f) / (float)slices);
 		glm::vec3 offset(center * cos(yaw), 0.0f, center * sin(yaw));
 		for (int vertex = 0; vertex < sliceVertices; vertex++) {
 			float pitch = vertex * ((M_PI * 2.0f) / (float)sliceVertices);
@@ -150,10 +150,10 @@ std::vector<float> genTorus(float inner, float outer, std::vector<float> &vertic
 			// std::cout << (int)circle.x << "," << (int)circle.y << "," << (int)circle.z << std::endl;
 			circle += offset;
 			// insert vertex position
-			vertices.insert(vertices.end(), {circle.x, circle.y, circle.z});
+			vertices.insert(vertices.end(), { circle.x, circle.y, circle.z });
 			circle -= offset;
 			// insert vertex normal
-			vertices.insert(vertices.end(), {circle.x, circle.y, circle.z});
+			vertices.insert(vertices.end(), { circle.x, circle.y, circle.z });
 		}
 	}
 	int vertexSize = 6;
@@ -161,21 +161,21 @@ std::vector<float> genTorus(float inner, float outer, std::vector<float> &vertic
 	int numVertices = slices * sliceVertices;
 	for (int i = 0; i < numVertices; i++) {
 		int offset = 1;
-		if ((i+1) % sliceVertices == 0) offset += -1*sliceVertices;
+		if ((i + 1) % sliceVertices == 0) offset += -1 * sliceVertices;
 		indices.push_back(i);
-		indices.push_back((i+rightOffset)%numVertices);
-		indices.push_back((i+rightOffset+offset)%numVertices);
+		indices.push_back((i + rightOffset) % numVertices);
+		indices.push_back((i + rightOffset + offset) % numVertices);
 
 		indices.push_back(i);
-		indices.push_back((i+offset) % numVertices);
-		indices.push_back((i+rightOffset+offset)%numVertices);
+		indices.push_back((i + offset) % numVertices);
+		indices.push_back((i + rightOffset + offset) % numVertices);
 		//std::cout << i << "," << (i+rightOffset) % numVertices<< "," << (i+rightOffset+offset) % numVertices<<std::endl;
 		//std::cout << i << "," << (i+offset)  % numVertices<< "," << (i+rightOffset+offset) % numVertices<<std::endl;
 	}
 	//std::cout << vertices.size() << std::endl;
 	return vertices;
 }
-void openglSetup(GLFWwindow **window) {
+void openglSetup(GLFWwindow** window) {
 	glfwInit();
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
@@ -221,91 +221,46 @@ int main()
 	printf("max global (total) work group counts x:%i y:%i z:%i\n",
 		work_grp_cnt[0], work_grp_cnt[1], work_grp_cnt[2]);
 
-	
 
-	
-	// Texture face("textures\\awesomeface.png", GL_RGBA);
-	std::vector<std::string> faces =
-	{
-			"textures\\dirtblock\\right.jpg",
-			"textures\\dirtblock\\left.jpg",
-			"textures\\dirtblock\\top.jpg",
-			"textures\\dirtblock\\bottom.jpg",
-			"textures\\dirtblock\\front.jpg",
-			"textures\\dirtblock\\back.jpg"
+	int work_grp_size[3];
+
+	glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_SIZE, 0, &work_grp_size[0]);
+	glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_SIZE, 1, &work_grp_size[1]);
+	glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_SIZE, 2, &work_grp_size[2]);
+
+	printf("max local (in one shader) work group sizes x:%i y:%i z:%i\n",
+		work_grp_size[0], work_grp_size[1], work_grp_size[2]);
+	int work_grp_inv;
+	glGetIntegerv(GL_MAX_COMPUTE_WORK_GROUP_INVOCATIONS, &work_grp_inv);
+	printf("max local work group invocations %i\n", work_grp_inv);
+
+
+	GLuint tex_output;
+	glGenTextures(1, &tex_output);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_2D, tex_output);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, INITIAL_WIDTH, INITIAL_HEIGHT, 0, GL_RGBA, GL_FLOAT,
+		NULL);
+	glBindImageTexture(0, tex_output, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
+
+	Shader rayShader = Shader("shaders\\ray.comp");
+	Shader quadShader = Shader("shaders\\quad.vert", "shaders\\quad.frag");
+	std::vector<float> quadVertices = {
+		-1.0f, -1.0f, 0.0f,
+		-1.0f, 1.0f, 0.0f,
+		1.0f, 1.0f, 0.0f,
+		-1.0f, -1.0f, 0.0f,
+		1.0f, -1.0f, 0.0f,
+		1.0f, 1.0f, 0.0f,
 	};
-	unsigned int dirtblock = loadCubemap(faces);
-	glBindTexture(GL_TEXTURE_CUBE_MAP, dirtblock);
-	// glActiveTexture(GL_TEXTURE1);
-	// glBindTexture(GL_TEXTURE_2D, wow);
-
-	// compile shaders
-
-	Shader shader("shaders\\dirtblock.vert", "shaders\\dirtblock.frag");
-	Shader torusShader("shaders\\torus.vert", "shaders\\torus.frag");
-	Shader lightShader("shaders\\vertex_shader.vert", "shaders\\fragment_shader.frag");
-	std:: cout << "Here" << std::endl;
-	std::vector<float> torusVertices;
-	std::vector<unsigned int> indices;
-	std::vector<int> t_attrOrder = {3, 3};
-	genTorus(0.5f, 1.0f, torusVertices, indices);
-	Mesh3D torus(torusVertices, t_attrOrder);
-	torus.setElementBuffer(indices);
+	std::vector<int> quadOrd = { 3 };
+	Mesh3D quad = Mesh3D(quadVertices, quadOrd);
 	// >>>> CREATE VERTEX BUFFER OBJECTS AND CONFIGURE VERTEX ATTRIBUTES <<<<
 
-
-	unsigned int indicies[] = {
-		0, 1, 3,
-		1, 2, 3,
-	};
-
-
-	std::vector<float> vertices = {
-    -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f,
-     0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f, 
-     0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f, 
-     0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f, 
-    -0.5f,  0.5f, -0.5f,  0.0f,  0.0f, -1.0f, 
-    -0.5f, -0.5f, -0.5f,  0.0f,  0.0f, -1.0f, 
-
-    -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
-     0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
-     0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
-     0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
-    -0.5f,  0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
-    -0.5f, -0.5f,  0.5f,  0.0f,  0.0f, 1.0f,
-
-    -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
-    -0.5f,  0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
-    -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
-    -0.5f, -0.5f, -0.5f, -1.0f,  0.0f,  0.0f,
-    -0.5f, -0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
-    -0.5f,  0.5f,  0.5f, -1.0f,  0.0f,  0.0f,
-
-     0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
-     0.5f,  0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
-     0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
-     0.5f, -0.5f, -0.5f,  1.0f,  0.0f,  0.0f,
-     0.5f, -0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
-     0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
-
-    -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
-     0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
-     0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
-     0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
-    -0.5f, -0.5f,  0.5f,  0.0f, -1.0f,  0.0f,
-    -0.5f, -0.5f, -0.5f,  0.0f, -1.0f,  0.0f,
-
-    -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
-     0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f,
-     0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
-     0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
-    -0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
-    -0.5f,  0.5f, -0.5f,  0.0f,  1.0f,  0.0f
-	};
-	std::vector<int> attrOrder = {3, 3};
-	Mesh3D cube(vertices, attrOrder);
-	
 	std::vector<float> planeVertices = {
 		// position        normal
 		1.0f, 0.0f, 1.0f,  0.0f, 1.0f, 0.0f, // bottom right
@@ -315,18 +270,18 @@ int main()
 		-1.0f, 0.0f, -1.0f,  0.0f, 1.0f, 0.0f, // top left
 		-1.0f, 0.0f, 1.0f,  0.0f, 1.0f, 0.0f, // bottom left
 	};
-	attrOrder = {3, 3};
-	Shader planeShader("shaders\\plane.vert", "shaders\\plane.frag");
-	Texture checkeredPattern("textures\\wood.png");
-	
-	Mesh3D plane(planeVertices, attrOrder, checkeredPattern);
+	std::vector<int> attrOrder = { 3, 3 };
+	//Shader planeShader("shaders\\plane.vert", "shaders\\plane.frag");
+	//Texture checkeredPattern("textures\\wood.png");
+
+	//Mesh3D plane(planeVertices, attrOrder, checkeredPattern);
 	//------------------ Main loop -----------------------
 	glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
 	glEnable(GL_DEPTH_TEST);
 
 	// loops until the window is closed by the user
 	// pressing the close window button sets this variable to true
-	while(!glfwWindowShouldClose(window))
+	while (!glfwWindowShouldClose(window))
 	{
 		// compute time between frames
 		deltaTime = glfwGetTime() - lastFrame;
@@ -338,64 +293,31 @@ int main()
 		// clears the color buffer with whatever the clearColour is set to
 		// good practice to clear before every render cycle
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		// crate.activate(0);
+		rayShader.useCompute(INITIAL_WIDTH, INITIAL_HEIGHT, 1);
 
-		glm::vec3 cubePositions[] = {
-				glm::vec3( 0.0f,  0.0f,  0.0f), 
-				glm::vec3( 2.0f,  5.0f, -15.0f), 
-				glm::vec3(-1.5f, -2.2f, -2.5f),  
-				glm::vec3(-3.8f, -2.0f, -12.3f),  
-				glm::vec3( 2.4f, -0.4f, -3.5f),  
-				glm::vec3(-1.7f,  3.0f, -7.5f),  
-				glm::vec3( 1.3f, -2.0f, -2.5f),  
-				glm::vec3( 1.5f,  2.0f, -2.5f), 
-				glm::vec3( 1.5f,  0.2f, -1.5f), 
-				glm::vec3(-1.3f,  1.0f, -1.5f)  
-		};
-		float radius = 5.0f;
-		
-		glm::mat4 lightTransform;
-		glm::vec3 lightPos;
-		lightTransform = glm::mat4(1.0f);
-		// lightTransform = glm::rotate(lightTransform, (float) glfwGetTime(), glm::vec3(0.0f, 1.0f, 0.0f));
-		lightTransform = glm::translate(lightTransform, glm::vec3(radius, 1.0f, 0.0f));
-		cube.transform = lightTransform;
-		lightPos = glm::vec3(lightTransform * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f)); 
-		cube.draw(camera, lightShader);
+		quad.draw(camera, quadShader);
+		//rayShader.useCompute(INITIAL_WIDTH, INITIAL_HEIGHT, 1);
+		//float radius = 5.0f;
 
-		planeShader.use();
-		planeShader.setFloat("far", 10.0f);
-		planeShader.setVec3("lightPos", lightPos.x, lightPos.y, lightPos.z);
-		planeShader.setVec3("cameraPos", camera.pos.x, camera.pos.y, camera.pos.z);
-		plane.draw(camera, planeShader);
+		//glm::mat4 lightTransform;
+		//glm::vec3 lightPos;
+		//lightTransform = glm::mat4(1.0f);
+		//// lightTransform = glm::rotate(lightTransform, (float) glfwGetTime(), glm::vec3(0.0f, 1.0f, 0.0f));
+		//lightTransform = glm::translate(lightTransform, glm::vec3(radius, 1.0f, 0.0f));
+		//lightPos = glm::vec3(lightTransform * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
 
-		for(int i = 0; i < 10; i++) {
-			glm::mat4 model;
-			model = glm::mat4(1.0f);
-			model = glm::translate(model, cubePositions[i]);
-			model = glm::rotate(model, (float) glfwGetTime() * i, glm::vec3(1.0f, 1.0f, 0.0f));
-			// camera.cameraPos = glm::vec3(sin(glfwGetTime())*radius, 0.0f, cos(glfwGetTime()) * radius);
-			shader.use();
-			shader.setVec3("lightPos", lightPos.x, lightPos.y, lightPos.z);
-			shader.setVec3("cameraPos", camera.pos.x, camera.pos.y, camera.pos.z);
-			cube.transform = model;
-			// cube.draw(camera, shader);
-		}
-		torusShader.use();
-		torusShader.setVec3("lightPos", lightPos.x, lightPos.y, lightPos.z);
-		torusShader.setVec3("cameraPos", camera.pos.x, camera.pos.y, camera.pos.z);
-		glm::mat4 model = glm::mat4(1.0f);
-		// model = glm::rotate(model, (float) glfwGetTime() * 4, glm::vec3(1.0f, 1.0f, 0.0f));
-		torus.transform = model;
-		torus.draw(camera, torusShader);
+		//planeShader.use();
+		//planeShader.setFloat("far", 10.0f);
+		//planeShader.setVec3("lightPos", lightPos.x, lightPos.y, lightPos.z);
+		//planeShader.setVec3("cameraPos", camera.pos.x, camera.pos.y, camera.pos.z);
 
+		//plane.draw(camera, planeShader);
 		// gets rid of flickering using double buffers
 		glfwSwapBuffers(window);
 		// checks if any events have been fired, and then calls any callbacks we assigned
 		// i.e. keystrokes, controller input
 		glfwPollEvents();
 	}
-	shader.free();
 	// just freeing any resources that were allocated by GLFW
 	glfwTerminate();
 	return 0;

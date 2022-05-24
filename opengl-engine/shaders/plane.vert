@@ -1,4 +1,4 @@
-#version 330 core
+#version 460 core
 layout (location = 0) in vec3 aPos;
 layout (location = 1) in vec3 aNormal;
 
@@ -7,7 +7,7 @@ out vec3 normal;
 uniform float offset;
 
 uniform float near;
-uniform float far;
+uniform float far = 100.0f;
 
 uniform mat4 model;
 uniform mat4 view;
