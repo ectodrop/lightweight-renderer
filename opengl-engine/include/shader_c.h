@@ -5,6 +5,13 @@
 #include <fstream>
 #include <iostream>
 #include <sstream>
+
+#include <glm/glm.hpp>
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
+#include <glm/ext.hpp>
+#include <glm/gtx/string_cast.hpp>
 class Shader {
     public:
         unsigned int ID;
@@ -116,18 +123,40 @@ class Shader {
             this->use();
             glUniform4f(glGetUniformLocation(ID, name), x, y, z, w);
         }
+        void setVec4(const char* name, glm::vec4 vec) {
+            setVec4(name, vec.x, vec.y, vec.z, vec.w);
+        }
         void setVec3(const char *name, float x, float y, float z) {
             this->use();
             glUniform3f(glGetUniformLocation(ID, name), x, y, z);
+        }
+        void setVec3(const char* name, glm::vec3 vec) {
+            setVec3(name, vec.x, vec.y, vec.z);
         }
         void setVec2(const char *name, float x, float y) {
             this->use();
             glUniform2f(glGetUniformLocation(ID, name), x, y);
         }
+        void setVec2(const char* name, glm::vec2 vec) {
+            setVec2(name, vec.x, vec.y);
+        }
         void setMat4(const char *name, GLboolean transpose, float *value) {
             this->use();
             glUniformMatrix4fv(glGetUniformLocation(ID, name), 1, transpose, value);
         }
+        void setMat4(const char* name, GLboolean transpose, glm::mat4 value) {
+            this->use();
+            glUniformMatrix4fv(glGetUniformLocation(ID, name), 1, transpose, glm::value_ptr(value));
+        }
+        void setMat3(const char* name, GLboolean transpose, float* value) {
+            this->use();
+            glUniformMatrix3fv(glGetUniformLocation(ID, name), 1, transpose, value);
+        }
+        void setMat3(const char* name, GLboolean transpose, glm::mat3 value) {
+            this->use();
+            glUniformMatrix3fv(glGetUniformLocation(ID, name), 1, transpose, glm::value_ptr(value));
+        }
+
         void free() {
             glDeleteShader(ID);
         }

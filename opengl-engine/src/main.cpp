@@ -84,10 +84,10 @@ void processInput(GLFWwindow* window) {
 		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 	}
 	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
-		camera.translate(camera.front * movementSpeed);
+		camera.translate(glm::normalize(camera.front * glm::vec3(1,0,1)) *movementSpeed);
 	}
 	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
-		camera.translate(camera.front * -1.0f * movementSpeed);
+		camera.translate(glm::normalize(camera.front * glm::vec3(1,0,1)) * -1.0f * movementSpeed);
 	}
 	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
 		camera.translate(camera.right * movementSpeed);
@@ -293,6 +293,9 @@ int main()
 		// clears the color buffer with whatever the clearColour is set to
 		// good practice to clear before every render cycle
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+		rayShader.setMat3("camera_rotation", false, camera.rotateMatrix());
+		rayShader.setVec3("camera_position", camera.pos);
+		rayShader.setFloat("u_time", glfwGetTime());
 		rayShader.useCompute(INITIAL_WIDTH, INITIAL_HEIGHT, 1);
 
 		quad.draw(camera, quadShader);
@@ -316,6 +319,12 @@ int main()
 		glfwSwapBuffers(window);
 		// checks if any events have been fired, and then calls any callbacks we assigned
 		// i.e. keystrokes, controller input
+		glfwPollEvents();
+		break;
+	}
+	while (!glfwWindowShouldClose(window)) {
+		processInput(window);
+
 		glfwPollEvents();
 	}
 	// just freeing any resources that were allocated by GLFW

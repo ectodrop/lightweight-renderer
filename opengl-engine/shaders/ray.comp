@@ -1,11 +1,209 @@
 #version 460 core
+#extension GL_ARB_gpu_shader_int64 : enable
+#extension AMD_gpu_shader_int64 : enable
 layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 layout(rgba32f, binding = 0) uniform image2D img_output;
+const float PI = 3.14159265;
 
+uniform mat3 camera_rotation;
+uniform vec3 camera_position;
 
+uniform float u_time;
+struct Ray {
+	vec3 origin;
+	vec3 dir;
+};
+
+struct Material {
+	vec4 color;
+	vec3 reflectivity;
+	vec3 emission;
+};
+
+struct Plane {
+	vec3 pos;
+	vec3 normal;
+	vec3 right;
+	float width;
+	float height;
+	Material mat;
+};
+
+struct Sphere {
+	vec3 pos;
+	float radius;
+	Material mat;
+};
+
+struct RayHit {
+	vec3 pos;
+	vec3 normal;
+	Material mat;
+};
+vec3 light_pos = vec3(0, 3.0, -1);
+
+const float MAX_DIST = 1000000;
+Sphere spheres[10];
+Plane planes[1];
+
+void test();
+
+uint64_t rng_state;
+
+uint64_t rand_pcg()
+{
+    uint64_t state = rng_state;
+    rng_state = rng_state * 747796405u + 2891336453u;
+    uint64_t word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
+    return (word >> 22u) ^ word;
+}
+
+float randFloat() {
+	return float(rand_pcg() & 0x00ffffffu)/float(0x00ffffffu);
+}
+/*
+gets the normalized device coordinates
+maps [0,img_width] -> [-1,1]
+and [0, img_height] -> [-1,1]
+*/
+vec3 getNDC(ivec2 screenCoord, int w, int h) {
+	return vec3(float(2*screenCoord.x - w)/w, float(2*screenCoord.y - h)/h, 0.0f);
+}
+
+/*
+
+*/
+bool rayHitSphere(Ray ray, Sphere sphere, out RayHit info) {
+	// math I dervied from eq of a sphere
+	float a = dot(ray.dir, ray.dir);
+	vec3 sphere_dir = ray.origin - sphere.pos;
+	float b = 2*dot(ray.dir, sphere_dir);
+	float c = dot(sphere_dir, sphere_dir) - sphere.radius * sphere.radius;
+	float disc = b*b - 4*a*c;
+	if (disc >= 0) {
+		float t = min((-b + sqrt(disc))/(2.0f*a), (-b - sqrt(disc))/(2.0f*a));
+		if (t < 0) return false;
+		info.pos = ray.origin + ray.dir * t;
+		info.normal = normalize(info.pos - sphere.pos);
+		info.mat = sphere.mat;
+		return true;
+	}
+	return false;
+}
+
+bool rayHitPlane(Ray ray, Plane plane, out RayHit info) {
+	float theta = dot(ray.dir, plane.normal);
+	float p = dot(plane.normal, plane.pos - ray.origin);
+	vec3 forward = cross(plane.right, plane.normal);
+	// the ray is going towards the plane (not away/parallel)
+	if (p/theta >= 0) {
+		info.pos = ray.origin + ray.dir * (p/theta);
+		info.normal = plane.normal;
+		info.mat = plane.mat;
+		float width =  abs(dot(forward, plane.pos - info.pos));
+		float height = abs(dot(plane.right, plane.pos - info.pos));
+		if (width < plane.width/2.0 && height < plane.height/2.0) {
+			return true;
+		}
+	}
+	return false;
+}
+
+bool rayHitScene(Ray ray, out RayHit info) {
+	float min_dist = MAX_DIST;
+	bool hit_something = false;
+	for (int i = 0; i < spheres.length(); i++) {
+		RayHit sphere_info;
+		if (rayHitSphere(ray, spheres[i], sphere_info)) {
+			float dist = length(sphere_info.pos - ray.origin);
+			if (dist < min_dist) {
+				min_dist = dist;
+				info = sphere_info;
+				hit_something = true;
+			}
+		}
+	}
+	for (int i = 0; i < planes.length(); i++) {
+		RayHit plane_info;
+		if (rayHitPlane(ray, planes[i], plane_info)) {
+			float dist = length(plane_info.pos - ray.origin);
+			if (dist < min_dist) {
+				min_dist = dist;
+				info = plane_info;
+				hit_something = true;
+			}
+		}
+	}
+
+	return hit_something;
+}
+
+vec3 randVectorInHemisphere(vec3 normal) {
+	float theta = 2 * PI * randFloat();
+    float phi = acos(1 - 2 * randFloat());
+    float x = sin(phi) * cos(theta);
+    float y = sin(phi) * sin(theta);
+    float z = cos(phi);
+	vec3 dir = vec3(x,y,z);
+	
+	return dot(dir, normal) > 0 ? dir:-dir;
+}
+vec4 trace(Ray ray, vec4 default_color, int bounces) {
+	RayHit info;
+	Ray view;
+	view.origin = ray.origin;
+	view.dir = ray.dir;
+	vec3 accum = vec3(1);
+	vec3 mask = vec3(1);
+	for (int i = 0; i < bounces+1; i++) {
+		if (!rayHitScene(ray, info)) {
+			accum *= default_color.rgb;
+			break;
+		}
+
+		//vec3 reflect_dir = normalize(reflect(ray.dir, info.normal));
+		vec3 reflect_dir = normalize(randVectorInHemisphere(info.normal));
+		ray = Ray(info.pos + info.normal*0.001, reflect_dir);
+
+		accum *= info.mat.color.rgb;
+
+	}
+	return vec4(accum,1);
+}
+
+RayHit discard_hit;
 void main() {
-	vec4 pixel = vec4(0.5);
 	ivec2 pixel_coords = ivec2(gl_GlobalInvocationID.xy);
+	vec4 bg_color = vec4(0.1, 0.2, 0.3, 1.0);
+	vec4 pixel = bg_color;
+	ivec2 dim = imageSize(img_output);
+	// set starting seed for random
+	rng_state = pixel_coords.x * dim.x * + pixel_coords.y;
 
+	// vec3 ray_origin = getNDC(pixel_coords, dim.x, dim.y);
+	vec3 ray_origin = getNDC(pixel_coords, dim.x, dim.y);
+	vec3 ray_dir = vec3(ray_origin.xy, -1.0);
+	Ray ray = Ray(camera_position, camera_rotation * ray_dir);
+	Material plane_mat;
+	plane_mat.color = vec4(1);
+	plane_mat.reflectivity = vec3(0);
+	plane_mat.emission = vec3(1);
+
+	Plane plane = Plane(vec3(0.0, -0.7, -2), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 1.0), 20.0, 20.0, plane_mat);
+	planes[0] = plane;
+	Material light_mat = Material(vec4(0), vec3(0), vec3(1));
+	Material mirror_mat = Material(vec4(1,0,0,1), vec3(0.3), vec3(0));
+	spheres[0] = Sphere(vec3(0,2,-5), 2, mirror_mat);
+	spheres[1] = Sphere(light_pos, 1, light_mat);
+	for (int i = 2; i < spheres.length(); i++) {
+		vec3 pos = vec3(i-spheres.length()/2, 0, -1);
+		Material sphere_mat = Material(vec4(1), vec3(0.9), vec3(0));
+		spheres[i] = Sphere(pos, 0.3, sphere_mat);
+	}
+	int samples = 2048;
+	for (int i = 0; i < samples; i++) {
+		pixel += trace(ray, bg_color, 2);
+	}
+	pixel /= samples;
 	imageStore(img_output, pixel_coords, pixel);
 }

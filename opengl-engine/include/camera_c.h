@@ -17,14 +17,24 @@ class Camera {
     void updateCameraVectors() {
       this->right = glm::normalize(glm::cross(front, up));
     }
+    glm::mat3 rotate(glm::vec3 axis, float angle) {
+        axis = glm::normalize(axis);
+        float c = cos(angle);
+        float s = sin(angle);
+        float oc = 1 - c;
+        return glm::mat3(oc * axis.x * axis.x + c, oc * axis.x * axis.y - axis.z * s, oc * axis.z * axis.x + axis.y * s,
+            oc * axis.x * axis.y + axis.z * s, oc * axis.y * axis.y + c, oc * axis.y * axis.z - axis.x * s,
+            oc * axis.z * axis.x - axis.y * s, oc * axis.y * axis.z + axis.x * s, oc * axis.z * axis.z + c);
+    }
   public:
     float fov;
     float width, height;
-    glm::vec3 pos, front, up, right;
-    float pitch = 0.0f, yaw = 270.0f;
+    glm::vec3 pos, front, up, right, starting_dir;
+    float pitch = 0.0f, yaw = 0.0f;
     Camera (glm::vec3 cameraPos, glm::vec3 cameraFront, glm::vec3 cameraUp, float width, float height, float fov) {
       this->pos = cameraPos;
       this->front = cameraFront;
+      this->starting_dir = cameraFront;
       this->up = cameraUp;
       this->width = width;
       this->height = height;
@@ -36,6 +46,11 @@ class Camera {
     }
     glm::mat4 clipMatrix() {
       return glm::perspective(glm::radians(fov), width/height, 0.1f, 100.0f);
+    }
+    glm::mat3 rotateMatrix() {
+        glm::mat3 rotX = rotate(glm::vec3(0, 1, 0), glm::radians(yaw));
+        glm::mat3 rotY = rotate(glm::vec3(1, 0, 0), -glm::radians(pitch));
+        return rotX * rotY;
     }
     void translate(glm::vec3 offset) {
       // translate the offset in the camera view coordinate space
@@ -59,10 +74,7 @@ class Camera {
         pitch = -89.0f;
       }
       // std::cout << pitch << " " << yaw << std::endl;
-      front.x = cos(glm::radians(yaw)) * cos(glm::radians(pitch));
-      front.y = sin(glm::radians(pitch));
-      front.z = sin(glm::radians(yaw)) * cos(glm::radians(pitch));
-      front = glm::normalize(front);
+      front = glm::normalize(rotateMatrix() * starting_dir);
       // std::cout << to_string(front) << std::endl;
       updateCameraVectors();
     }
