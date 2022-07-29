@@ -15,7 +15,7 @@ struct Ray {
 };
 
 struct Material {
-	vec4 color;
+	vec3 albedo;
 	vec3 reflectivity;
 	vec3 emission;
 };
@@ -40,13 +40,13 @@ struct RayHit {
 	vec3 normal;
 	Material mat;
 };
-vec3 light_pos = vec3(0, 3.0, -1);
+vec3 light_pos = vec3(0, 0, -1);
 
 const float MAX_DIST = 1000000;
-Sphere spheres[10];
-Plane planes[1];
-
-void test();
+Sphere spheres[100];
+int num_spheres = 0;
+Plane planes[10];
+int num_planes = 0;
 
 uint64_t rng_state;
 
@@ -70,6 +70,12 @@ vec3 getNDC(ivec2 screenCoord, int w, int h) {
 	return vec3(float(2*screenCoord.x - w)/w, float(2*screenCoord.y - h)/h, 0.0f);
 }
 
+vec3 randOffset(vec3 vec) {
+	float offset = 75;
+	float dx = randFloat();
+	float dy = randFloat();
+	return vec3(vec.x + (dx/offset - dx/(offset*2)), vec.y + (dy/offset-dy/(offset*2)), vec.z);
+}
 /*
 
 */
@@ -100,6 +106,9 @@ bool rayHitPlane(Ray ray, Plane plane, out RayHit info) {
 		info.pos = ray.origin + ray.dir * (p/theta);
 		info.normal = plane.normal;
 		info.mat = plane.mat;
+		if (dot(ray.dir, plane.normal) > 0) {
+			info.mat = Material(vec3(0),vec3(0),vec3(0));
+		}
 		float width =  abs(dot(forward, plane.pos - info.pos));
 		float height = abs(dot(plane.right, plane.pos - info.pos));
 		if (width < plane.width/2.0 && height < plane.height/2.0) {
@@ -109,10 +118,19 @@ bool rayHitPlane(Ray ray, Plane plane, out RayHit info) {
 	return false;
 }
 
+void addPlane(Plane p) {
+	planes[num_planes] = p;
+	num_planes++;
+}
+void addSphere(Sphere s) {
+	spheres[num_spheres] = s;
+	num_spheres++;
+}
+
 bool rayHitScene(Ray ray, out RayHit info) {
 	float min_dist = MAX_DIST;
 	bool hit_something = false;
-	for (int i = 0; i < spheres.length(); i++) {
+	for (int i = 0; i < num_spheres; i++) {
 		RayHit sphere_info;
 		if (rayHitSphere(ray, spheres[i], sphere_info)) {
 			float dist = length(sphere_info.pos - ray.origin);
@@ -123,7 +141,7 @@ bool rayHitScene(Ray ray, out RayHit info) {
 			}
 		}
 	}
-	for (int i = 0; i < planes.length(); i++) {
+	for (int i = 0; i < num_planes; i++) {
 		RayHit plane_info;
 		if (rayHitPlane(ray, planes[i], plane_info)) {
 			float dist = length(plane_info.pos - ray.origin);
@@ -134,8 +152,30 @@ bool rayHitScene(Ray ray, out RayHit info) {
 			}
 		}
 	}
-
 	return hit_something;
+}
+
+void addCube(vec3 pos, float w, float l, float h, Material mat, bool cornell) {
+	float inv = 1;
+	if (cornell) inv *= -1;
+	Material red = Material(vec3(1,0,0), vec3(0), vec3(0));
+	Material green= Material(vec3(0,1,0), vec3(0), vec3(0));
+
+	Plane[6] ps = {
+		{ pos + vec3(w/2,0,0), inv * vec3(1,0,0), vec3(0,1,0), h, l, cornell ? red:mat},
+		{ pos + vec3(-w/2,0,0), inv * vec3(-1,0,0), vec3(0,1,0), h, l, cornell ? green:mat},
+		{ pos + vec3(0,h/2,0), inv * vec3(0,1,0), vec3(1,0,0), w, l, mat },
+		{ pos + vec3(0,-h/2,0), inv * vec3(0,-1,0), vec3(1,0,0), w, l, mat },
+		{ pos + vec3(0,0,l/2), inv * vec3(0,0,1), vec3(1,0,0), w, h, mat },
+		{ pos + vec3(0,0,-l/2), inv * vec3(0,0,-1), vec3(1,0,0), w, h, mat },
+	};
+
+	for (int i = 0; i < 6; i++) {
+		if (!(cornell && i == 4)) {
+			addPlane(ps[i]);
+		}
+	}
+	
 }
 
 vec3 randVectorInHemisphere(vec3 normal) {
@@ -153,20 +193,34 @@ vec4 trace(Ray ray, vec4 default_color, int bounces) {
 	Ray view;
 	view.origin = ray.origin;
 	view.dir = ray.dir;
-	vec3 accum = vec3(1);
+	vec3 accum = vec3(0);
 	vec3 mask = vec3(1);
+	float prr = 1; // russian roulette
 	for (int i = 0; i < bounces+1; i++) {
 		if (!rayHitScene(ray, info)) {
-			accum *= default_color.rgb;
+			accum += default_color.rgb * mask;
 			break;
 		}
+
+		accum += info.mat.emission * mask;
+		
 
 		//vec3 reflect_dir = normalize(reflect(ray.dir, info.normal));
 		vec3 reflect_dir = normalize(randVectorInHemisphere(info.normal));
 		ray = Ray(info.pos + info.normal*0.001, reflect_dir);
+		
+		if (i > 3) {
+			prr = max(mask.x, max(mask.y, mask.z));
+			prr = max(1, prr);
+			if (randFloat() > prr) {
+				break;
+			}
+			//mask *= 1/abs(prr);
+		}
 
-		accum *= info.mat.color.rgb;
-
+		float pdf = 1/(2*PI);
+		vec3 brdf = info.mat.albedo / PI; 
+		mask *= brdf * dot(reflect_dir, info.normal) / (pdf);
 	}
 	return vec4(accum,1);
 }
@@ -183,26 +237,36 @@ void main() {
 	// vec3 ray_origin = getNDC(pixel_coords, dim.x, dim.y);
 	vec3 ray_origin = getNDC(pixel_coords, dim.x, dim.y);
 	vec3 ray_dir = vec3(ray_origin.xy, -1.0);
-	Ray ray = Ray(camera_position, camera_rotation * ray_dir);
+	Ray ray = Ray(camera_position+vec3(0,0,0.3), camera_rotation * ray_dir);
 	Material plane_mat;
-	plane_mat.color = vec4(1);
+	plane_mat.albedo = vec3(1);
 	plane_mat.reflectivity = vec3(0);
-	plane_mat.emission = vec3(1);
+	plane_mat.emission = vec3(0);
 
-	Plane plane = Plane(vec3(0.0, -0.7, -2), vec3(0.0, 1.0, 0.0), vec3(0.0, 0.0, 1.0), 20.0, 20.0, plane_mat);
-	planes[0] = plane;
-	Material light_mat = Material(vec4(0), vec3(0), vec3(1));
-	Material mirror_mat = Material(vec4(1,0,0,1), vec3(0.3), vec3(0));
-	spheres[0] = Sphere(vec3(0,2,-5), 2, mirror_mat);
-	spheres[1] = Sphere(light_pos, 1, light_mat);
-	for (int i = 2; i < spheres.length(); i++) {
-		vec3 pos = vec3(i-spheres.length()/2, 0, -1);
-		Material sphere_mat = Material(vec4(1), vec3(0.9), vec3(0));
-		spheres[i] = Sphere(pos, 0.3, sphere_mat);
+	//Plane plane;
+	//plane.pos = vec3(0.0, -0.7, -2);
+	//plane.normal = vec3(0.0, 1.0, 0.0);
+	//plane.right = vec3(0.0, 0.0, 1.0);
+	//plane.width = 20.0;
+	//plane.height = 20.0;
+	//plane.mat = plane_mat;
+	//addPlane(plane);]
+	Material light_mat = Material(vec3(1), vec3(0), vec3(40));
+	addPlane(Plane(vec3(0,0.245,-0.2),vec3(0,-1,0), vec3(1,0,0), 0.1, 0.1, light_mat));
+	addCube(vec3(0,0,-0.2), 0.5, 0.5, 0.5, plane_mat, true);
+	addCube(vec3(-0.1,-0.18,-0.3), 0.15, 0.15, 0.15, plane_mat, false);
+	Material mirror_mat = Material(vec3(1), vec3(0.3), vec3(0));
+	//if (num_planes > 6) mirror_mat.albedo = vec4(0,1,0,1);
+	addSphere(Sphere(vec3(0.1,-0.2,-0.1), 0.05, mirror_mat));
+	num_planes=12;
+	for (int i = 0; i < 6; i++) {
+		vec3 pos = vec3(i-6, 0, -1);
+		Material sphere_mat = Material(vec3(1), vec3(0.9), vec3(0));
+		//addSphere(Sphere(pos, 0.3, sphere_mat));
 	}
-	int samples = 2048;
+	int samples = 1024;
 	for (int i = 0; i < samples; i++) {
-		pixel += trace(ray, bg_color, 2);
+		pixel += trace(Ray(ray.origin, randOffset(ray.dir)), bg_color, 5);
 	}
 	pixel /= samples;
 	imageStore(img_output, pixel_coords, pixel);
