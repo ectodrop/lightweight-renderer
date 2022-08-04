@@ -5,8 +5,26 @@ layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
 layout(rgba32f, binding = 0) uniform image2D img_output;
 const float PI = 3.14159265;
 
+#define QUAD 0
+#define SPHERE 1
+#define MAX_DISTANCE 100000
+#define EPS 0.001
 uniform mat3 camera_rotation;
 uniform vec3 camera_position;
+
+// 1D
+uniform isamplerBuffer indicies;
+// 3D
+uniform samplerBuffer vertices;
+uniform samplerBuffer normals;
+uniform samplerBuffer texcoords;
+
+// vec3(v1_id, v2_id, v3_id)
+uniform isamplerBuffer primatives;
+
+// 4D
+//{ vec4(start_prim, num_prims, left, right), vec4(bmin, _), vec4(bmax, _)
+uniform samplerBuffer BVH;
 
 uniform float u_time;
 struct Ray {
@@ -40,13 +58,19 @@ struct RayHit {
 	vec3 normal;
 	Material mat;
 };
-vec3 light_pos = vec3(0, 0, -1);
 
+struct BVHNode {
+	int num_prims, start_prim;
+	int left, right;
+	vec3 bmin, bmax; // bounds
+};
 const float MAX_DIST = 1000000;
 Sphere spheres[100];
 int num_spheres = 0;
 Plane planes[10];
 int num_planes = 0;
+
+Plane light_source;
 
 uint64_t rng_state;
 
@@ -70,6 +94,155 @@ vec3 getNDC(ivec2 screenCoord, int w, int h) {
 	return vec3(float(2*screenCoord.x - w)/w, float(2*screenCoord.y - h)/h, 0.0f);
 }
 
+BVHNode getNode(int index) {
+	int node_size = 3;
+	BVHNode node;
+	node.start_prim = int(texelFetch(BVH, index * node_size).x);
+	node.num_prims =  int(texelFetch(BVH, index * node_size).y);
+	node.left =       int(texelFetch(BVH, index * node_size).z);
+	node.right =      int(texelFetch(BVH, index * node_size).w);
+	node.bmin =       texelFetch(BVH, index * node_size + 1).xyz; 
+	node.bmax =       texelFetch(BVH, index * node_size + 2).xyz; 
+	return node;
+}
+
+vec3 getVertex(int index) {
+	return texelFetch(vertices, index).xyz;
+}
+
+bool AABBIntersect(Ray r, vec3 bmin, vec3 bmax, out float t) {
+	float tmin, tmax, tymin, tymax, tzmin, tzmax; 
+	vec3 bounds[2] = { bmin, bmax };
+	vec3 invdir = 1.0f / r.dir;
+	ivec3 neg = ivec3(invdir.x < 0, invdir.y < 0, invdir.z < 0);
+    tmin = (bounds[neg[0]].x - r.origin.x) * invdir.x; 
+    tmax = (bounds[1-neg[0]].x - r.origin.x) * invdir.x;
+    tymin = (bounds[neg[1]].y - r.origin.y) * invdir.y;
+    tymax = (bounds[1-neg[1]].y - r.origin.y) * invdir.y;
+ 
+    if ((tmin > tymax) || (tymin > tmax)) 
+        return false; 
+ 
+    if (tymin > tmin) 
+    tmin = tymin; 
+    if (tymax < tmax) 
+    tmax = tymax; 
+ 
+    tzmin = (bounds[neg[2]].z - r.origin.z) * invdir.z;
+    tzmax = (bounds[1-neg[2]].z - r.origin.z) * invdir.z;
+ 
+    if ((tmin > tzmax) || (tzmin > tmax)) 
+        return false; 
+ 
+    if (tzmin > tmin) 
+		tmin = tzmin; 
+    if (tzmax < tmax) 
+		tmax = tzmax; 
+ 
+    t = tmin; 
+ 
+    if (t < 0) { 
+        t = tmax; 
+        if (t < 0) return false; 
+    } 
+ 
+    return true; 
+}
+// primative holds the indicies for the vertices
+bool IntersectTri(Ray ray, ivec3 primative, out float t) {
+	vec3 dir = ray.dir;
+	vec3 orig = ray.origin;
+	vec3 v0 = getVertex(primative.x), v1= getVertex(primative.y), v2 = getVertex(primative.z);
+	// compute plane's normal
+	vec3 v0v1 = v1 - v0;
+	vec3 v0v2 = v2 - v0;
+	// no need to normalize
+	vec3 N = cross(v0v1, v0v2);  //N 
+	float area2 = length(N);
+
+	// Step 1: finding P
+
+	// check if ray and plane are parallel ?
+	float NdotRayDirection = dot(N, dir);
+	if (abs(NdotRayDirection) <= EPS)  //almost 0 
+		return false;  //they are parallel so they don't intersect ! 
+
+	// compute d parameter using equation 2
+	float d = dot(-N,v0);
+
+	// compute t (equation 3)
+	t = -(dot(N, orig) + d) / NdotRayDirection;
+
+	// check if the triangle is in behind the ray
+	if (t < 0) return false;  //the triangle is behind 
+
+	// compute the intersection point using equation 1
+	vec3 P = orig + t * dir;
+
+	// Step 2: inside-outside test
+	vec3 C;  //vector perpendicular to triangle's plane 
+
+	// edge 0
+	vec3 edge0 = v1 - v0;
+	vec3 vp0 = P - v0;
+	C = cross(edge0,vp0);
+	if (dot(N,C) < 0) return false;  //P is on the right side 
+
+	// edge 1
+	vec3 edge1 = v2 - v1;
+	vec3 vp1 = P - v1;
+	C = cross(edge1,vp1);
+	if (dot(N,C) < 0)  return false;  //P is on the right side 
+
+	// edge 2
+	vec3 edge2 = v0 - v2;
+	vec3 vp2 = P - v2;
+	C = cross(edge2,vp2);
+	if (dot(N,C) < 0) return false;  //P is on the right side; 
+
+	return true;  //this ray hits the triangle
+}
+
+int BVHIntersect(Ray ray) {
+	// TODO implement depth
+	float min_dist = -1;
+	int node_index = -1;
+	int nodes_to_visit[64];
+	int current_node = 0;
+	nodes_to_visit[0] = current_node;
+	while (current_node >= 0) {
+		int node_index = nodes_to_visit[current_node];
+		current_node--;
+		BVHNode node = getNode(node_index);
+		float dist;
+		if (AABBIntersect(ray, node.bmin, node.bmax, dist)) {
+			if (node.num_prims <= 1) {
+				int prim_index = texelFetch(indicies, node.start_prim).x;
+				ivec3 prim = texelFetch(primatives, prim_index).xyz;
+				if (IntersectTri(ray, prim, dist) && dist < min_dist) {
+					min_dist = dist;
+					node_index = node.start_prim;
+				}
+			}
+			else {
+				nodes_to_visit[current_node++] = node.left;
+				nodes_to_visit[current_node++] = node.right;
+			}
+		}
+	}
+	return node_index;
+}
+
+
+vec3 sampleGeometry(Plane plane, out RayHit hit) {
+	float dx = (randFloat() - 0.5) * plane.width/2;
+	float dy = (randFloat() - 0.5) * plane.height/2;
+	hit.mat = plane.mat;
+	hit.normal = plane.normal;
+	hit.pos =  plane.pos + plane.right * dx + cross(plane.normal, plane.right) * dy;
+	return hit.mat.emission;
+}
+
 vec3 randOffset(vec3 vec) {
 	float offset = 75;
 	float dx = randFloat();
@@ -79,7 +252,7 @@ vec3 randOffset(vec3 vec) {
 /*
 
 */
-bool rayHitSphere(Ray ray, Sphere sphere, out RayHit info) {
+bool rayHitSphere(Ray ray, Sphere sphere, float maxDist, out RayHit info) {
 	// math I dervied from eq of a sphere
 	float a = dot(ray.dir, ray.dir);
 	vec3 sphere_dir = ray.origin - sphere.pos;
@@ -88,7 +261,7 @@ bool rayHitSphere(Ray ray, Sphere sphere, out RayHit info) {
 	float disc = b*b - 4*a*c;
 	if (disc >= 0) {
 		float t = min((-b + sqrt(disc))/(2.0f*a), (-b - sqrt(disc))/(2.0f*a));
-		if (t < 0) return false;
+		if (t > maxDist || t < 0) return false;
 		info.pos = ray.origin + ray.dir * t;
 		info.normal = normalize(info.pos - sphere.pos);
 		info.mat = sphere.mat;
@@ -97,17 +270,17 @@ bool rayHitSphere(Ray ray, Sphere sphere, out RayHit info) {
 	return false;
 }
 
-bool rayHitPlane(Ray ray, Plane plane, out RayHit info) {
+bool rayHitPlane(Ray ray, Plane plane, float maxDist, out RayHit info) {
 	float theta = dot(ray.dir, plane.normal);
 	float p = dot(plane.normal, plane.pos - ray.origin);
 	vec3 forward = cross(plane.right, plane.normal);
 	// the ray is going towards the plane (not away/parallel)
-	if (p/theta >= 0) {
+	if (p/theta >= 0 && p/theta <= maxDist) {
 		info.pos = ray.origin + ray.dir * (p/theta);
 		info.normal = plane.normal;
 		info.mat = plane.mat;
 		if (dot(ray.dir, plane.normal) > 0) {
-			info.mat = Material(vec3(0),vec3(0),vec3(0));
+			info.mat = Material(vec3(0), vec3(0), vec3(0));
 		}
 		float width =  abs(dot(forward, plane.pos - info.pos));
 		float height = abs(dot(plane.right, plane.pos - info.pos));
@@ -127,12 +300,12 @@ void addSphere(Sphere s) {
 	num_spheres++;
 }
 
-bool rayHitScene(Ray ray, out RayHit info) {
+bool rayHitScene(Ray ray, float maxDist, out RayHit info) {
 	float min_dist = MAX_DIST;
 	bool hit_something = false;
 	for (int i = 0; i < num_spheres; i++) {
 		RayHit sphere_info;
-		if (rayHitSphere(ray, spheres[i], sphere_info)) {
+		if (rayHitSphere(ray, spheres[i], maxDist, sphere_info)) {
 			float dist = length(sphere_info.pos - ray.origin);
 			if (dist < min_dist) {
 				min_dist = dist;
@@ -143,7 +316,7 @@ bool rayHitScene(Ray ray, out RayHit info) {
 	}
 	for (int i = 0; i < num_planes; i++) {
 		RayHit plane_info;
-		if (rayHitPlane(ray, planes[i], plane_info)) {
+		if (rayHitPlane(ray, planes[i], maxDist, plane_info)) {
 			float dist = length(plane_info.pos - ray.origin);
 			if (dist < min_dist) {
 				min_dist = dist;
@@ -197,25 +370,44 @@ vec4 trace(Ray ray, vec4 default_color, int bounces) {
 	vec3 mask = vec3(1);
 	float prr = 1; // russian roulette
 	for (int i = 0; i < bounces+1; i++) {
-		if (!rayHitScene(ray, info)) {
-			accum += default_color.rgb * mask;
+		if (!rayHitScene(ray, MAX_DISTANCE, info)) {
+			//accum += default_color.rgb * mask;
 			break;
 		}
-
-		accum += info.mat.emission * mask;
+		vec3 surface_emission = info.mat.emission;
+		if (i == 0) {
+			accum += surface_emission * mask;
+		};
+		// accum += info.mat.emission * mask;
+		RayHit light_hit;
+		vec3 direct = sampleGeometry(light_source, light_hit);
+		vec3 sample_pos = light_hit.pos;
+		vec3 surface_pos = info.pos + info.normal * EPS;
+		vec3 light_dir = sample_pos - surface_pos;
+		float light_dist = length(light_dir) ;
+		vec3 light_normal= light_hit.normal;
+		vec3 omega = normalize(light_dir);
+		if (dot(light_dir, info.normal) < 0 || dot(-light_dir, light_hit.normal) < 0) {
+			
+		}
+		else if (info.mat.emission == 0 && !rayHitScene(Ray(surface_pos, omega), light_dist-EPS, light_hit)) {
+			float area = (light_source.width * light_source.height);
+			float P = dot(light_normal, -omega) / dot(surface_pos-sample_pos, surface_pos-sample_pos);
+			vec3 r = (direct * (info.mat.albedo/PI) * abs(dot(info.normal, light_dir))) * ( P *area);
+			accum += r * mask;
+		}
 		
-
 		//vec3 reflect_dir = normalize(reflect(ray.dir, info.normal));
 		vec3 reflect_dir = normalize(randVectorInHemisphere(info.normal));
-		ray = Ray(info.pos + info.normal*0.001, reflect_dir);
+		ray = Ray(info.pos, reflect_dir);
 		
 		if (i > 3) {
 			prr = max(mask.x, max(mask.y, mask.z));
 			prr = max(1, prr);
 			if (randFloat() > prr) {
-				break;
+				break;	
 			}
-			//mask *= 1/abs(prr);
+			mask *= 1/abs(prr);
 		}
 
 		float pdf = 1/(2*PI);
@@ -237,37 +429,11 @@ void main() {
 	// vec3 ray_origin = getNDC(pixel_coords, dim.x, dim.y);
 	vec3 ray_origin = getNDC(pixel_coords, dim.x, dim.y);
 	vec3 ray_dir = vec3(ray_origin.xy, -1.0);
-	Ray ray = Ray(camera_position+vec3(0,0,0.3), camera_rotation * ray_dir);
-	Material plane_mat;
-	plane_mat.albedo = vec3(1);
-	plane_mat.reflectivity = vec3(0);
-	plane_mat.emission = vec3(0);
 
-	//Plane plane;
-	//plane.pos = vec3(0.0, -0.7, -2);
-	//plane.normal = vec3(0.0, 1.0, 0.0);
-	//plane.right = vec3(0.0, 0.0, 1.0);
-	//plane.width = 20.0;
-	//plane.height = 20.0;
-	//plane.mat = plane_mat;
-	//addPlane(plane);]
-	Material light_mat = Material(vec3(1), vec3(0), vec3(40));
-	addPlane(Plane(vec3(0,0.245,-0.2),vec3(0,-1,0), vec3(1,0,0), 0.1, 0.1, light_mat));
-	addCube(vec3(0,0,-0.2), 0.5, 0.5, 0.5, plane_mat, true);
-	addCube(vec3(-0.1,-0.18,-0.3), 0.15, 0.15, 0.15, plane_mat, false);
-	Material mirror_mat = Material(vec3(1), vec3(0.3), vec3(0));
-	//if (num_planes > 6) mirror_mat.albedo = vec4(0,1,0,1);
-	addSphere(Sphere(vec3(0.1,-0.2,-0.1), 0.05, mirror_mat));
-	num_planes=12;
-	for (int i = 0; i < 6; i++) {
-		vec3 pos = vec3(i-6, 0, -1);
-		Material sphere_mat = Material(vec3(1), vec3(0.9), vec3(0));
-		//addSphere(Sphere(pos, 0.3, sphere_mat));
-	}
-	int samples = 1024;
+	int samples = 4;
 	for (int i = 0; i < samples; i++) {
-		pixel += trace(Ray(ray.origin, randOffset(ray.dir)), bg_color, 5);
+		// pixel += trace(Ray(ray.origin, randOffset(ray.dir)), bg_color, 3);
 	}
 	pixel /= samples;
-	imageStore(img_output, pixel_coords, pixel);
+	imageStore(img_output, pixel_coords, vec4(texelFetch(indicies, 0))/8.0f);
 }

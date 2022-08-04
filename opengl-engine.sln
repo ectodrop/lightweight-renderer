@@ -5,6 +5,8 @@ VisualStudioVersion = 16.0.32510.428
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "opengl-engine", "opengl-engine\opengl-engine.vcxproj", "{6DA8C1BD-4910-4242-A853-737333754DA1}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SandBox", "SandBox\SandBox.vcxproj", "{BA282925-FA8B-4A42-9324-6F4C3F979EE6}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -21,6 +23,14 @@ Global
 		{6DA8C1BD-4910-4242-A853-737333754DA1}.Release|x64.Build.0 = Release|x64
 		{6DA8C1BD-4910-4242-A853-737333754DA1}.Release|x86.ActiveCfg = Release|Win32
 		{6DA8C1BD-4910-4242-A853-737333754DA1}.Release|x86.Build.0 = Release|Win32
+		{BA282925-FA8B-4A42-9324-6F4C3F979EE6}.Debug|x64.ActiveCfg = Debug|x64
+		{BA282925-FA8B-4A42-9324-6F4C3F979EE6}.Debug|x64.Build.0 = Debug|x64
+		{BA282925-FA8B-4A42-9324-6F4C3F979EE6}.Debug|x86.ActiveCfg = Debug|Win32
+		{BA282925-FA8B-4A42-9324-6F4C3F979EE6}.Debug|x86.Build.0 = Debug|Win32
+		{BA282925-FA8B-4A42-9324-6F4C3F979EE6}.Release|x64.ActiveCfg = Release|x64
+		{BA282925-FA8B-4A42-9324-6F4C3F979EE6}.Release|x64.Build.0 = Release|x64
+		{BA282925-FA8B-4A42-9324-6F4C3F979EE6}.Release|x86.ActiveCfg = Release|Win32
+		{BA282925-FA8B-4A42-9324-6F4C3F979EE6}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -1,34 +1,20 @@
+#include "pch.h"
 
-#define _USE_MATH_DEFINES
-#define STB_IMAGE_IMPLEMENTATION
-
-#include <glad/glad.h>
-#include <GLFW/glfw3.h>
-#include <iostream>
-#include <fstream>
-#include <shader_c.h>
-#include <camera_c.h>
-#include <texture_c.h>
-#include <mesh3d_c.h>
-#include <cmath>
-#include <math.h>
-#include <vector>
+#include <shader.h>
+#include <camera.h>
+#include <texture.h>
+#include <mesh3d.h>
 #include <modelLoader.h>
-
-#include <glm/glm.hpp>
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-#include <glm/gtc/type_ptr.hpp>
-#include <glm/ext.hpp>
-#include <glm/gtx/string_cast.hpp>
-
-
+#include <scene.h>
+#include <quad.h>
 Camera camera(glm::vec3(0.0f, 0.0f, 0.0f),
 	glm::vec3(0.0f, 0.0f, -1.0f),
 	glm::vec3(0.0f, 1.0f, 0.0f),
 	INITIAL_WIDTH,
 	INITIAL_HEIGHT,
 	45.0f);
+
+Ray mouse_ray;
 
 float deltaTime = 0.0f;
 float lastFrame = 0.0f;
@@ -44,6 +30,7 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
 	camera.height = height;
 }
 void mouse_callback(GLFWwindow* window, double xPos, double yPos) {
+	
 	if (firstMouseMove) {
 		prevMouseX = xPos;
 		prevMouseY = yPos;
@@ -58,6 +45,16 @@ void mouse_callback(GLFWwindow* window, double xPos, double yPos) {
 	camera.rotate(dy * -1.0f * sensitivity, dx * sensitivity);
 }
 
+void mouse_button_callback(GLFWwindow* window, int button, int action, int mod) {
+	if (button == GLFW_MOUSE_BUTTON_LEFT) {
+		if (action == GLFW_PRESS) {
+			float x = (2 * prevMouseX - camera.width) / camera.width;
+			float y = (camera.height - 2 * prevMouseY) / camera.height;
+			mouse_ray.dir = glm::vec3(x, y, -1);
+			mouse_ray.origin = camera.pos;
+		}
+	}
+}
 // normal mousewheels only provide y offset
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
 	camera.fov += yoffset * -1;
@@ -69,7 +66,7 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
 	}
 }
 void processInput(GLFWwindow* window) {
-	float movementSpeed = 5.0f * deltaTime;
+	float movementSpeed = 0.5f * deltaTime;
 	if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) {
 		movementSpeed *= 5.0f;
 	}
@@ -202,7 +199,7 @@ void openglSetup(GLFWwindow** window) {
 	// sets up a callback function whenever the size of the window is changed
 	// callback is called once when it is first bound
 	glfwSetFramebufferSizeCallback(*window, framebuffer_size_callback);
-	glfwSetInputMode(*window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+	//glfwSetInputMode(*window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 	glfwSetCursorPosCallback(*window, mouse_callback);
 	glfwSetScrollCallback(*window, scroll_callback);
 
@@ -211,7 +208,7 @@ int main()
 {
 	GLFWwindow* window;
 	openglSetup(&window);
-
+	
 	int work_grp_cnt[3];
 
 	glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 0, &work_grp_cnt[0]);
@@ -258,7 +255,7 @@ int main()
 		1.0f, 1.0f, 0.0f,
 	};
 	std::vector<int> quadOrd = { 3 };
-	Mesh3D quad = Mesh3D(quadVertices, quadOrd);
+	//Mesh3D quad = Mesh3D(quadVertices, quadOrd);
 	// >>>> CREATE VERTEX BUFFER OBJECTS AND CONFIGURE VERTEX ATTRIBUTES <<<<
 
 	std::vector<float> planeVertices = {
@@ -279,8 +276,20 @@ int main()
 	glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
 	glEnable(GL_DEPTH_TEST);
 
+
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+	ImGuiIO& io = ImGui::GetIO(); (void)io;
+	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
+	io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
+	ImGui::StyleColorsDark();
+	ImGui_ImplGlfw_InitForOpenGL(window, true);
+	ImGui_ImplOpenGL3_Init("#version 460");
 	// loops until the window is closed by the user
 	// pressing the close window button sets this variable to true
+	Scene scene;
+	Quad quad;
+	quad.Init();
 	while (!glfwWindowShouldClose(window))
 	{
 		// compute time between frames
@@ -293,14 +302,75 @@ int main()
 		// clears the color buffer with whatever the clearColour is set to
 		// good practice to clear before every render cycle
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+		ImGui_ImplOpenGL3_NewFrame();
+		ImGui_ImplGlfw_NewFrame();
+		ImGui::NewFrame();
+
+		rayShader.useCompute(INITIAL_WIDTH, INITIAL_HEIGHT, 1);
+
 		rayShader.setMat3("camera_rotation", false, camera.rotateMatrix());
 		rayShader.setVec3("camera_position", camera.pos);
 		rayShader.setFloat("u_time", glfwGetTime());
-		rayShader.useCompute(INITIAL_WIDTH, INITIAL_HEIGHT, 1);
-
-		quad.draw(camera, quadShader);
+		//quad.draw(camera, quadShader);
 		//rayShader.useCompute(INITIAL_WIDTH, INITIAL_HEIGHT, 1);
 		//float radius = 5.0f;
+
+		quad.RenderFullScreen();
+		ImGui::ShowDemoWindow();
+
+		{
+			ImGui::Begin("Options");
+			ImGui::Text("Load object file");
+			if (ImGui::Button("Load")) {
+				// NEEDS TO HAVE MULTI-BYTE CHAR SET RATHER THAN UNICODE
+				const TCHAR* FilterSpec = "All Files(.)\0*.*\0";
+				const TCHAR* Title = "Open";
+				OPENFILENAME ofn = { 0 };
+				const TCHAR* myDir = "C:\\c_plus_plus_trial";
+				TCHAR szFileName[MAX_PATH] = { '\0' };
+				TCHAR szFileTitle[MAX_PATH] = { '\0' };
+
+
+				ofn.lpstrFile = szFileName;
+
+				/* fill in non-variant fields of OPENFILENAME struct. */
+				ofn.lStructSize = sizeof(OPENFILENAME);
+
+				ofn.hwndOwner = GetFocus();
+				ofn.lpstrFilter = FilterSpec;
+				ofn.lpstrCustomFilter = NULL;
+				ofn.nMaxCustFilter = 0;
+				ofn.nFilterIndex = 0;
+				ofn.nMaxFile = MAX_PATH;
+				// ofn.lpstrInitialDir = myDir; // Initial directory.
+				ofn.lpstrFileTitle = szFileTitle;
+				ofn.nMaxFileTitle = MAX_PATH;
+				ofn.lpstrTitle = Title;
+				ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST ;
+
+
+				if (GetOpenFileName(&ofn) == 1) {
+					std::cout << szFileName << std::endl;
+					scene.LoadScene(szFileName);
+					scene.tree->FormatForShader(rayShader);
+				}
+				else {
+					std::cout << "Failed to open file" << std::endl;
+				}
+			}
+			ImGui::End();
+		}
+
+		ImGui::Render();
+		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+		if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
+		{
+			GLFWwindow* backup_current_context = glfwGetCurrentContext();
+			ImGui::UpdatePlatformWindows();
+			ImGui::RenderPlatformWindowsDefault();
+			glfwMakeContextCurrent(backup_current_context);
+		}
 
 		//glm::mat4 lightTransform;
 		//glm::vec3 lightPos;
@@ -320,8 +390,12 @@ int main()
 		// checks if any events have been fired, and then calls any callbacks we assigned
 		// i.e. keystrokes, controller input
 		glfwPollEvents();
-		break;
 	}
+	ImGui_ImplOpenGL3_Shutdown();
+	ImGui_ImplGlfw_Shutdown();
+	ImGui::DestroyContext();
+	glFinish(); // hangs until all previous opengl calls are finished (to get accurate times)
+	printf("render time: %f", glfwGetTime() - lastFrame);
 	while (!glfwWindowShouldClose(window)) {
 		processInput(window);
 
