@@ -1,14 +1,21 @@
 // SandBox.cpp : This file contains the 'main' function. Program execution begins and ends there.
 //
+#include <any>
 
 #include <iostream>
 #include <Windows.h>
 #include <commdlg.h>
 #include <vector>
+#include <functional>
+
 OPENFILENAME ofn;
 DWORD error_value;
 
 using namespace std;
+
+struct SomeStruct {
+	int x;
+};
 
 bool openFileDialog(TCHAR szFileName[])
 {
@@ -64,9 +71,9 @@ std::unique_ptr<int> GenPointer() {
 
 int main()
 {
-	auto pointer = GenPointer();
-	std::vector<std::unique_ptr<int>> vec;
-	vec.push_back(std::move(pointer));
-	cout << *vec[0] << endl;
+	std::function<void(std::any)> func = [](std::any a) {
+		cout << std::any_cast<int>(a) << endl;
+	};
+	func(3);
 }
 

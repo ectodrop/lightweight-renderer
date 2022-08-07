@@ -1,12 +1,7 @@
 #include "pch.h"
 
-#include <shader.h>
-#include <camera.h>
-#include <texture.h>
-#include <mesh3d.h>
-#include <modelLoader.h>
-#include <scene.h>
-#include <quad.h>
+#include "engine.h"
+
 Camera camera(glm::vec3(0.0f, 0.0f, 0.0f),
 	glm::vec3(0.0f, 0.0f, -1.0f),
 	glm::vec3(0.0f, 1.0f, 0.0f),
@@ -21,6 +16,8 @@ float lastFrame = 0.0f;
 
 double prevMouseX = INITIAL_WIDTH / 2.0;
 double prevMouseY = INITIAL_HEIGHT / 2.0;
+bool mouse_dragging = false;
+glm::vec2 mouse_drag_start;
 bool firstMouseMove = true;
 // callback to change the viewport size if the window is resized
 // window is unused parameter
@@ -36,13 +33,15 @@ void mouse_callback(GLFWwindow* window, double xPos, double yPos) {
 		prevMouseY = yPos;
 		firstMouseMove = false;
 	}
-	float dx = xPos - prevMouseX;
-	float dy = yPos - prevMouseY;
 	prevMouseX = xPos;
 	prevMouseY = yPos;
-	// std:: cout << dx << " " << dy <<  std::endl;
-	float sensitivity = 0.1f;
-	camera.rotate(dy * -1.0f * sensitivity, dx * sensitivity);
+	if (mouse_dragging) {
+		float dx = xPos - mouse_drag_start.x;
+		float dy = yPos - mouse_drag_start.y;
+		//std:: cout << dx << " " << dy <<  std::endl;
+		float sensitivity = 0.1f;
+		camera.rotate(dy * -1.0f * sensitivity, dx * sensitivity);
+	}
 }
 
 void mouse_button_callback(GLFWwindow* window, int button, int action, int mod) {
@@ -52,6 +51,12 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mod) 
 			float y = (camera.height - 2 * prevMouseY) / camera.height;
 			mouse_ray.dir = glm::vec3(x, y, -1);
 			mouse_ray.origin = camera.pos;
+			mouse_dragging = true;
+			mouse_drag_start = glm::vec2(prevMouseX, prevMouseY);
+		}
+		if (action == GLFW_RELEASE) {
+			mouse_dragging = false;
+			camera.lockRotation();
 		}
 	}
 }
@@ -172,7 +177,32 @@ std::vector<float> genTorus(float inner, float outer, std::vector<float>& vertic
 	//std::cout << vertices.size() << std::endl;
 	return vertices;
 }
-void openglSetup(GLFWwindow** window) {
+
+void getComputeWorkSize() {
+	int work_grp_cnt[3];
+
+	glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 0, &work_grp_cnt[0]);
+	glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 1, &work_grp_cnt[1]);
+	glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 2, &work_grp_cnt[2]);
+
+	printf("max global (total) work group counts x:%i y:%i z:%i\n",
+		work_grp_cnt[0], work_grp_cnt[1], work_grp_cnt[2]);
+
+
+	int work_grp_size[3];
+
+	glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_SIZE, 0, &work_grp_size[0]);
+	glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_SIZE, 1, &work_grp_size[1]);
+	glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_SIZE, 2, &work_grp_size[2]);
+
+	printf("max local (in one shader) work group sizes x:%i y:%i z:%i\n",
+		work_grp_size[0], work_grp_size[1], work_grp_size[2]);
+	int work_grp_inv;
+	glGetIntegerv(GL_MAX_COMPUTE_WORK_GROUP_INVOCATIONS, &work_grp_inv);
+	printf("max local work group invocations %i\n", work_grp_inv);
+}
+
+void WindowSetup(GLFWwindow** window) {
 	glfwInit();
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
@@ -200,208 +230,17 @@ void openglSetup(GLFWwindow** window) {
 	// callback is called once when it is first bound
 	glfwSetFramebufferSizeCallback(*window, framebuffer_size_callback);
 	//glfwSetInputMode(*window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-	glfwSetCursorPosCallback(*window, mouse_callback);
-	glfwSetScrollCallback(*window, scroll_callback);
+	//glfwSetCursorPosCallback(*window, mouse_callback);
+	//glfwSetScrollCallback(*window, scroll_callback);
 
 }
 int main()
 {
-	GLFWwindow* window;
-	openglSetup(&window);
-	
-	int work_grp_cnt[3];
-
-	glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 0, &work_grp_cnt[0]);
-	glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 1, &work_grp_cnt[1]);
-	glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 2, &work_grp_cnt[2]);
-
-	printf("max global (total) work group counts x:%i y:%i z:%i\n",
-		work_grp_cnt[0], work_grp_cnt[1], work_grp_cnt[2]);
-
-
-	int work_grp_size[3];
-
-	glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_SIZE, 0, &work_grp_size[0]);
-	glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_SIZE, 1, &work_grp_size[1]);
-	glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_SIZE, 2, &work_grp_size[2]);
-
-	printf("max local (in one shader) work group sizes x:%i y:%i z:%i\n",
-		work_grp_size[0], work_grp_size[1], work_grp_size[2]);
-	int work_grp_inv;
-	glGetIntegerv(GL_MAX_COMPUTE_WORK_GROUP_INVOCATIONS, &work_grp_inv);
-	printf("max local work group invocations %i\n", work_grp_inv);
-
-
-	GLuint tex_output;
-	glGenTextures(1, &tex_output);
-	glActiveTexture(GL_TEXTURE0);
-	glBindTexture(GL_TEXTURE_2D, tex_output);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, INITIAL_WIDTH, INITIAL_HEIGHT, 0, GL_RGBA, GL_FLOAT,
-		NULL);
-	glBindImageTexture(0, tex_output, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
-
-	Shader rayShader = Shader("shaders\\ray.comp");
-	Shader quadShader = Shader("shaders\\quad.vert", "shaders\\quad.frag");
-	std::vector<float> quadVertices = {
-		-1.0f, -1.0f, 0.0f,
-		-1.0f, 1.0f, 0.0f,
-		1.0f, 1.0f, 0.0f,
-		-1.0f, -1.0f, 0.0f,
-		1.0f, -1.0f, 0.0f,
-		1.0f, 1.0f, 0.0f,
-	};
-	std::vector<int> quadOrd = { 3 };
-	//Mesh3D quad = Mesh3D(quadVertices, quadOrd);
-	// >>>> CREATE VERTEX BUFFER OBJECTS AND CONFIGURE VERTEX ATTRIBUTES <<<<
-
-	std::vector<float> planeVertices = {
-		// position        normal
-		1.0f, 0.0f, 1.0f,  0.0f, 1.0f, 0.0f, // bottom right
-		-1.0f, 0.0f, 1.0f,  0.0f, 1.0f, 0.0f, // bottom left
-		1.0f, 0.0f, -1.0f,  0.0f, 1.0f, 0.0f, // top right
-		1.0f, 0.0f, -1.0f,  0.0f, 1.0f, 0.0f, // top right
-		-1.0f, 0.0f, -1.0f,  0.0f, 1.0f, 0.0f, // top left
-		-1.0f, 0.0f, 1.0f,  0.0f, 1.0f, 0.0f, // bottom left
-	};
-	std::vector<int> attrOrder = { 3, 3 };
-	//Shader planeShader("shaders\\plane.vert", "shaders\\plane.frag");
-	//Texture checkeredPattern("textures\\wood.png");
-
-	//Mesh3D plane(planeVertices, attrOrder, checkeredPattern);
-	//------------------ Main loop -----------------------
-	glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
-	glEnable(GL_DEPTH_TEST);
-
-
-	IMGUI_CHECKVERSION();
-	ImGui::CreateContext();
-	ImGuiIO& io = ImGui::GetIO(); (void)io;
-	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
-	io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
-	ImGui::StyleColorsDark();
-	ImGui_ImplGlfw_InitForOpenGL(window, true);
-	ImGui_ImplOpenGL3_Init("#version 460");
-	// loops until the window is closed by the user
-	// pressing the close window button sets this variable to true
-	Scene scene;
-	Quad quad;
-	quad.Init();
-	while (!glfwWindowShouldClose(window))
+	OpenGLEngine* engine = new OpenGLEngine();
+	while (!engine->ShouldClose())
 	{
-		// compute time between frames
-		deltaTime = glfwGetTime() - lastFrame;
-		lastFrame = glfwGetTime();
-		// check for keystrokes
-		processInput(window);
-
-		// RENDERING COMMANDS
-		// clears the color buffer with whatever the clearColour is set to
-		// good practice to clear before every render cycle
-		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-		ImGui_ImplOpenGL3_NewFrame();
-		ImGui_ImplGlfw_NewFrame();
-		ImGui::NewFrame();
-
-		rayShader.useCompute(INITIAL_WIDTH, INITIAL_HEIGHT, 1);
-
-		rayShader.setMat3("camera_rotation", false, camera.rotateMatrix());
-		rayShader.setVec3("camera_position", camera.pos);
-		rayShader.setFloat("u_time", glfwGetTime());
-		//quad.draw(camera, quadShader);
-		//rayShader.useCompute(INITIAL_WIDTH, INITIAL_HEIGHT, 1);
-		//float radius = 5.0f;
-
-		quad.RenderFullScreen();
-		ImGui::ShowDemoWindow();
-
-		{
-			ImGui::Begin("Options");
-			ImGui::Text("Load object file");
-			if (ImGui::Button("Load")) {
-				// NEEDS TO HAVE MULTI-BYTE CHAR SET RATHER THAN UNICODE
-				const TCHAR* FilterSpec = "All Files(.)\0*.*\0";
-				const TCHAR* Title = "Open";
-				OPENFILENAME ofn = { 0 };
-				const TCHAR* myDir = "C:\\c_plus_plus_trial";
-				TCHAR szFileName[MAX_PATH] = { '\0' };
-				TCHAR szFileTitle[MAX_PATH] = { '\0' };
-
-
-				ofn.lpstrFile = szFileName;
-
-				/* fill in non-variant fields of OPENFILENAME struct. */
-				ofn.lStructSize = sizeof(OPENFILENAME);
-
-				ofn.hwndOwner = GetFocus();
-				ofn.lpstrFilter = FilterSpec;
-				ofn.lpstrCustomFilter = NULL;
-				ofn.nMaxCustFilter = 0;
-				ofn.nFilterIndex = 0;
-				ofn.nMaxFile = MAX_PATH;
-				// ofn.lpstrInitialDir = myDir; // Initial directory.
-				ofn.lpstrFileTitle = szFileTitle;
-				ofn.nMaxFileTitle = MAX_PATH;
-				ofn.lpstrTitle = Title;
-				ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST ;
-
-
-				if (GetOpenFileName(&ofn) == 1) {
-					std::cout << szFileName << std::endl;
-					scene.LoadScene(szFileName);
-					scene.tree->FormatForShader(rayShader);
-				}
-				else {
-					std::cout << "Failed to open file" << std::endl;
-				}
-			}
-			ImGui::End();
-		}
-
-		ImGui::Render();
-		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
-		if (io.ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
-		{
-			GLFWwindow* backup_current_context = glfwGetCurrentContext();
-			ImGui::UpdatePlatformWindows();
-			ImGui::RenderPlatformWindowsDefault();
-			glfwMakeContextCurrent(backup_current_context);
-		}
-
-		//glm::mat4 lightTransform;
-		//glm::vec3 lightPos;
-		//lightTransform = glm::mat4(1.0f);
-		//// lightTransform = glm::rotate(lightTransform, (float) glfwGetTime(), glm::vec3(0.0f, 1.0f, 0.0f));
-		//lightTransform = glm::translate(lightTransform, glm::vec3(radius, 1.0f, 0.0f));
-		//lightPos = glm::vec3(lightTransform * glm::vec4(0.0f, 0.0f, 0.0f, 1.0f));
-
-		//planeShader.use();
-		//planeShader.setFloat("far", 10.0f);
-		//planeShader.setVec3("lightPos", lightPos.x, lightPos.y, lightPos.z);
-		//planeShader.setVec3("cameraPos", camera.pos.x, camera.pos.y, camera.pos.z);
-
-		//plane.draw(camera, planeShader);
-		// gets rid of flickering using double buffers
-		glfwSwapBuffers(window);
-		// checks if any events have been fired, and then calls any callbacks we assigned
-		// i.e. keystrokes, controller input
-		glfwPollEvents();
+		engine->Update();
 	}
-	ImGui_ImplOpenGL3_Shutdown();
-	ImGui_ImplGlfw_Shutdown();
-	ImGui::DestroyContext();
-	glFinish(); // hangs until all previous opengl calls are finished (to get accurate times)
-	printf("render time: %f", glfwGetTime() - lastFrame);
-	while (!glfwWindowShouldClose(window)) {
-		processInput(window);
-
-		glfwPollEvents();
-	}
-	// just freeing any resources that were allocated by GLFW
-	glfwTerminate();
+	
 	return 0;
 }

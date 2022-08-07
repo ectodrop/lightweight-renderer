@@ -1,7 +1,7 @@
 #ifndef SCENE_H
 #define SCENE_H
 #include <mesh3d.h>
-#include <bvh.h>
+#include <accel/bvh.h>
 #include "pch.h"
 
 class Scene {
@@ -14,7 +14,7 @@ private:
         for (int i = 0; i < root_node->mNumMeshes; i++) {
             int child = MakeMesh();
             AddMeshChild(parent, child);
-            addGeometry(scene->mMeshes[i], scene, child);
+            addGeometry(scene->mMeshes[root_node->mMeshes[i]], scene, child);
         }
 
         return parent;
@@ -25,7 +25,7 @@ private:
         for (int v = 0; v < mesh->mNumVertices; v++) {
             glm::vec3 pos(mesh->mVertices[v].x, mesh->mVertices[v].y, mesh->mVertices[v].z);
             _Vertices.push_back(pos);
-
+            //printf("(%f,%f,%f)\n", pos.x, pos.y, pos.z);
             if (mesh->HasNormals()) {
                 glm::vec3 normal(mesh->mNormals[v].x, mesh->mNormals[v].y, mesh->mNormals[v].z);
                 _Normals.push_back(normal);
@@ -44,7 +44,7 @@ private:
             // offset the indicies by how many vertices are already in the list
             // this is to be able to fit the indicies and vertices into 2 lists
             t = { indicies[0] + num_vertices, indicies[1] + num_vertices, indicies[2] + num_vertices };
-            // printf("%d/%d/%d\n", t.v0, t.v1, t.v2);
+            //printf("%d/%d/%d\n", t.v0, t.v1, t.v2);
             _Triangles.push_back(t);
             _Triangle_Mesh_Map.push_back(mesh_id);
         }
@@ -59,7 +59,7 @@ public:
     std::vector<int> _Triangle_Mesh_Map;
     BVH *tree;
 
-	void LoadScene(const char * path) {
+    void LoadScene(std::string path) {
         Assimp::Importer importer;
         const aiScene* scene = importer.ReadFile(path, aiProcess_Triangulate | aiProcess_FlipUVs | aiProcess_GenNormals | aiProcess_GenUVCoords);
         std::cout << scene->mNumMaterials << " " << scene->mNumTextures << std::endl;

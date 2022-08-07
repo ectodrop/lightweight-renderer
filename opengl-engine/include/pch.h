@@ -11,6 +11,8 @@
 #include <utility>
 #include <map>
 #include <stack>
+#include <functional>
+#include <any>
 
 #include <assimp/Importer.hpp>      // C++ importer interface
 #include <assimp/scene.h>           // Output data structure
@@ -22,7 +24,6 @@
 
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
-#include "stb_image.h"
 
 #include <glm/glm.hpp>
 #include <glm/glm.hpp>

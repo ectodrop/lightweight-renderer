@@ -3,6 +3,7 @@
 
 #include "pch.h"
 
+#include "stb_image.h"
 class Texture {
   private:
     int width, height, nrChannels;
