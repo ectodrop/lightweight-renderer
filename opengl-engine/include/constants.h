@@ -1,7 +1,5 @@
-#ifndef CONSTANTS_H
-#define CONSTANTS_H
+#pragma once
 
-#define INITIAL_WIDTH 600
-#define INITIAL_HEIGHT 400
+#define INITIAL_WIDTH 800
+#define INITIAL_HEIGHT 600
 
-#endif

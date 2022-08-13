@@ -1,5 +1,4 @@
-#ifndef RAY_H
-#define RAY_H
+#pragma once
 #include "pch.h"
 
 struct Ray {
@@ -7,5 +6,3 @@ struct Ray {
 	glm::vec3 origin, dir;
 	float max_t;
 };
-
-#endif

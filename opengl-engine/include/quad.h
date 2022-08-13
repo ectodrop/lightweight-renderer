@@ -1,7 +1,6 @@
-#ifndef QUAD_H
-#define QUAD_H
+#pragma once
 #include "pch.h"
-#include <shader.h>
+#include <rendering/shader.h>
 
 class Quad {
 private:
@@ -41,4 +40,3 @@ public:
 		glDrawArrays(GL_TRIANGLES, 0, 6);
 	}
 };
-#endif

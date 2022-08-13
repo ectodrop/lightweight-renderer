@@ -1,5 +1,4 @@
-#ifndef SHADER_H
-#define SHADER_H
+#pragma once
 #include "pch.h"
 
 class Shader {
@@ -174,4 +173,3 @@ class Shader {
             return "";
         }
 };
-#endif

@@ -48,18 +48,24 @@
     <ClCompile Include="include\ui\components\model_view.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="include\rendering\raster_renderer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="include\ui\components\scene_tree.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="include\texture.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\camera.h">
+    <ClInclude Include="include\rendering\camera.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\mesh3d.h">
+    <ClInclude Include="include\rendering\mesh3d.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\shader.h">
+    <ClInclude Include="include\rendering\shader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\stb_image.h">
@@ -92,7 +98,7 @@
     <ClInclude Include="include\imgui\imgui_impl_opengl3_loader.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="include\scene.h">
+    <ClInclude Include="include\rendering\scene.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="include\pch.h">
@@ -128,8 +134,35 @@
     <ClInclude Include="include\ui\ui_component.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="include\rendering\renderer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\rendering\triangle.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\input_source.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="include\rendering\material.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="assimp-vc142-mtd.dll" />
+    <None Include="shaders\dirtblock.frag" />
+    <None Include="shaders\dirtblock.vert" />
+    <None Include="shaders\fragment_shader.frag" />
+    <None Include="shaders\plane.frag" />
+    <None Include="shaders\plane.vert" />
+    <None Include="shaders\quad.frag" />
+    <None Include="shaders\quad.vert" />
+    <None Include="shaders\ray.comp" />
+    <None Include="shaders\torus.frag" />
+    <None Include="shaders\torus.vert" />
+    <None Include="shaders\vertex_shader.vert" />
+    <None Include="shaders\raster.vert" />
+    <None Include="shaders\raster.frag" />
+    <None Include="shaders\axis.vert" />
+    <None Include="shaders\axis.frag" />
   </ItemGroup>
 </Project>

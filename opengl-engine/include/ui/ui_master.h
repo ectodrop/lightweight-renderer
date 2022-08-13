@@ -2,24 +2,27 @@
 #include "constants.h"
 #include "pch.h"
 #include "./components/menu_bar.cpp"
+#include "./components/model_view.cpp"
+#include "./components/scene_tree.cpp"
 
 class UIContainer {
 	ImGuiIO* _io;
 	GLFWwindow* _window;
-	std::map<std::string, std::function<void(std::any)>> _ui_callbacks;
-	std::map<std::string, std::any> _ui_variables;
+	inline static std::map<std::string, std::function<void(std::any)>> _ui_callbacks;
+	inline static std::map<std::string, std::any> _ui_variables;
 	std::vector<UIComponent *> _components;
 	UIComponent* _menubar;
-	static void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
-		glViewport(0, 0, width, height);
+
+	int count = 0;
+	static void FramebufferSizeCallback(GLFWwindow* window, int width, int height) {
+		//glViewport(0, 0, width, height);
+		//_ui_callbacks["resize-window"](glm::vec2(width, height));
 	}
-	void InitComponents() {
-		_menubar = new MenuBarComponent(_ui_callbacks, _ui_variables);
-		// _components.push_back();
+	void AddComponent(UIComponent* ui_component) {
+		_components.push_back(ui_component);
 	}
 public:
 	UIContainer() {
-		InitComponents();
 		WindowSetup(_window);
 		IMGUI_CHECKVERSION();
 		ImGui::CreateContext();
@@ -30,12 +33,19 @@ public:
 		ImGui_ImplGlfw_InitForOpenGL(_window, true);
 		ImGui_ImplOpenGL3_Init("#version 460");
 	}
+	void InitComponents() {
+		_menubar = new MenuBarComponent(_ui_callbacks, _ui_variables);
+		AddComponent(new ModelViewComponent(_ui_callbacks, _ui_variables));
+		AddComponent(new SceneTreeComponent(_ui_callbacks, _ui_variables));
+	}
 	void UISetVar(std::string var_name, std::any a) {
 		_ui_variables[var_name] = a;
 	}
-	void UISetCallback(std::string callback_name, std::function<void(std::any)> callback) {
-		_ui_callbacks[callback_name] = callback;
+	template <typename T>
+	void UISetCallback(std::string callback_name, std::function<void(T)> callback) {
+		_ui_callbacks[callback_name] = [=](std::any a) {callback(std::any_cast<T>(a)); };
 	}
+
 	void PreRender() {
 		ImGui_ImplOpenGL3_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
@@ -50,8 +60,14 @@ public:
 			component->Render();
 		}
 		
+		if (_io->MouseWheel) {
+			count++;
+			std::cout << _io->MouseWheel << std::endl;
+		}
+
 		ImGui::Render();
 		ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+		
 		// needed if Viewports are enabled
 		if (_io->ConfigFlags & ImGuiConfigFlags_ViewportsEnable)
 		{
@@ -87,7 +103,7 @@ public:
 
 		// sets up a callback function whenever the size of the window is changed
 		// callback is called once when it is first bound
-		glfwSetFramebufferSizeCallback(window, UIContainer::framebuffer_size_callback);
+		glfwSetFramebufferSizeCallback(window, UIContainer::FramebufferSizeCallback);
 		//glfwSetInputMode(*window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 		//glfwSetCursorPosCallback(*window, mouse_callback);
 		//glfwSetScrollCallback(*window, scroll_callback);

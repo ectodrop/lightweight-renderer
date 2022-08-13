@@ -1,5 +1,4 @@
-#ifndef TEXTURE_H
-#define TEXTURE_H
+#pragma once
 
 #include "pch.h"
 
@@ -42,4 +41,3 @@ class Texture {
       bind2D();
     }
 };
-#endif

@@ -1,5 +1,4 @@
-#ifndef BOUNDS_H
-#define BOUNDS_H
+#pragma once
 #include "ray.h"
 
 struct Bound {
@@ -78,4 +77,3 @@ struct Bound {
 
 	glm::vec3 bmin, bmax;
 };
-#endif

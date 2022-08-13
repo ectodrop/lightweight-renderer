@@ -1,5 +1,4 @@
-#ifndef PRIMATIVE_H
-#define PRIMATIVE_H
+#pragma once
 #include "pch.h"
 #include "bounds.h"
 #include "ray.h"
@@ -67,4 +66,3 @@ struct Primative {
 	}
 	glm::vec3 vertex0, vertex1, vertex2, centroid, bcentroid;
 };
-#endif

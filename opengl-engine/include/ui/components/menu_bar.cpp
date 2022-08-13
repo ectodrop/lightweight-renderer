@@ -1,56 +1,51 @@
-#ifndef FILE_LOADER_H
-#define FILE_LOADER_H
+#pragma once
 #include <ui/ui_component.h>
 
 class MenuBarComponent : public UIComponent {
 	using UIComponent::UIComponent;
+
 	void Render() override {
-		{
-			if (ImGui::BeginMainMenuBar()) {
-				if (ImGui::BeginMenu("File")) {
-					if (ImGui::MenuItem("Import .obj")) {
-						// NEEDS TO HAVE MULTI-BYTE CHAR SET RATHER THAN UNICODE
-						const TCHAR* FilterSpec = "All Files(.)\0*.*\0";
-						const TCHAR* Title = "Open";
-						OPENFILENAME ofn = { 0 };
-						const TCHAR* myDir = "C:\\c_plus_plus_trial";
-						TCHAR szFileName[MAX_PATH] = { '\0' };
-						TCHAR szFileTitle[MAX_PATH] = { '\0' };
+		if (ImGui::BeginMainMenuBar()) {
+			if (ImGui::BeginMenu("File")) {
+				if (ImGui::MenuItem("Import .obj")) {
+					// NEEDS TO HAVE MULTI-BYTE CHAR SET RATHER THAN UNICODE
+					const TCHAR* FilterSpec = "All Files(.)\0*.*\0";
+					const TCHAR* Title = "Open";
+					OPENFILENAME ofn = { 0 };
+					const TCHAR* myDir = "C:\\c_plus_plus_trial";
+					TCHAR szFileName[MAX_PATH] = { '\0' };
+					TCHAR szFileTitle[MAX_PATH] = { '\0' };
 
 
-						ofn.lpstrFile = szFileName;
+					ofn.lpstrFile = szFileName;
 
-						/* fill in non-variant fields of OPENFILENAME struct. */
-						ofn.lStructSize = sizeof(OPENFILENAME);
+					/* fill in non-variant fields of OPENFILENAME struct. */
+					ofn.lStructSize = sizeof(OPENFILENAME);
 
-						ofn.hwndOwner = GetFocus();
-						ofn.lpstrFilter = FilterSpec;
-						ofn.lpstrCustomFilter = NULL;
-						ofn.nMaxCustFilter = 0;
-						ofn.nFilterIndex = 0;
-						ofn.nMaxFile = MAX_PATH;
-						// ofn.lpstrInitialDir = myDir; // Initial directory.
-						ofn.lpstrFileTitle = szFileTitle;
-						ofn.nMaxFileTitle = MAX_PATH;
-						ofn.lpstrTitle = Title;
-						ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
+					ofn.hwndOwner = GetFocus();
+					ofn.lpstrFilter = FilterSpec;
+					ofn.lpstrCustomFilter = NULL;
+					ofn.nMaxCustFilter = 0;
+					ofn.nFilterIndex = 0;
+					ofn.nMaxFile = MAX_PATH;
+					// ofn.lpstrInitialDir = myDir; // Initial directory.
+					ofn.lpstrFileTitle = szFileTitle;
+					ofn.nMaxFileTitle = MAX_PATH;
+					ofn.lpstrTitle = Title;
+					ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
 
 
-						if (GetOpenFileName(&ofn) == 1) {
-							std::cout << szFileName << std::endl;
-							ui_callbacks["loader-open-file"](std::string(szFileName));
-						}
-						else {
-							std::cout << "Failed to open file" << std::endl;
-						}
+					if (GetOpenFileName(&ofn) == 1) {
+						std::cout << szFileName << std::endl;
+						InvokeUICallback("loader-open-file", std::string(szFileName));
 					}
-					ImGui::EndMenu();
+					else {
+						std::cout << "Failed to open file" << std::endl;
+					}
 				}
-				ImGui::EndMainMenuBar();
+				ImGui::EndMenu();
 			}
-			std::cout << ImGui::IsWindowHovered() << std::endl;
+			ImGui::EndMainMenuBar();
 		}
 	}
 };
-
-#endif

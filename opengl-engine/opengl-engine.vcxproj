@@ -19,8 +19,10 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="include\rendering\raster_renderer.cpp" />
     <ClCompile Include="include\ui\components\menu_bar.cpp" />
     <ClCompile Include="include\ui\components\model_view.cpp" />
+    <ClCompile Include="include\ui\components\scene_tree.cpp" />
     <ClCompile Include="src\glad.c" />
     <ClCompile Include="include\imgui\imgui.cpp" />
     <ClCompile Include="include\imgui\imgui_demo.cpp" />
@@ -42,8 +44,12 @@
     </ClInclude>
     <ClInclude Include="include\accel\primative.h" />
     <ClInclude Include="include\accel\ray.h" />
+    <ClInclude Include="include\input_source.h" />
+    <ClInclude Include="include\rendering\material.h" />
+    <ClInclude Include="include\rendering\renderer.h" />
+    <ClInclude Include="include\rendering\triangle.h" />
     <ClInclude Include="src\engine.h" />
-    <ClInclude Include="include\camera.h" />
+    <ClInclude Include="include\rendering\camera.h" />
     <ClInclude Include="include\constants.h">
       <SubType>
       </SubType>
@@ -51,7 +57,7 @@
     <ClInclude Include="include\loader.h" />
     <ClInclude Include="include\quad.h" />
     <ClInclude Include="include\pch.h" />
-    <ClInclude Include="include\scene.h" />
+    <ClInclude Include="include\rendering\scene.h" />
     <ClInclude Include="include\imgui\imconfig.h" />
     <ClInclude Include="include\imgui\imgui.h" />
     <ClInclude Include="include\imgui\imgui_impl_glfw.h" />
@@ -61,8 +67,8 @@
     <ClInclude Include="include\imgui\imstb_rectpack.h" />
     <ClInclude Include="include\imgui\imstb_textedit.h" />
     <ClInclude Include="include\imgui\imstb_truetype.h" />
-    <ClInclude Include="include\mesh3d.h" />
-    <ClInclude Include="include\shader.h" />
+    <ClInclude Include="include\rendering\mesh3d.h" />
+    <ClInclude Include="include\rendering\shader.h" />
     <ClInclude Include="include\stb_image.h" />
     <ClInclude Include="include\texture.h" />
     <ClInclude Include="include\ui\ui_component.h">
@@ -73,6 +79,21 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="assimp-vc142-mtd.dll" />
+    <None Include="shaders\axis.frag" />
+    <None Include="shaders\axis.vert" />
+    <None Include="shaders\dirtblock.frag" />
+    <None Include="shaders\dirtblock.vert" />
+    <None Include="shaders\fragment_shader.frag" />
+    <None Include="shaders\plane.frag" />
+    <None Include="shaders\plane.vert" />
+    <None Include="shaders\quad.frag" />
+    <None Include="shaders\quad.vert" />
+    <None Include="shaders\raster.frag" />
+    <None Include="shaders\raster.vert" />
+    <None Include="shaders\ray.comp" />
+    <None Include="shaders\torus.frag" />
+    <None Include="shaders\torus.vert" />
+    <None Include="shaders\vertex_shader.vert" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

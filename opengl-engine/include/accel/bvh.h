@@ -1,10 +1,9 @@
-#ifndef BVH_H
-#define BVH_H
+#pragma once
 #include "pch.h";
 #include "bounds.h"
 #include "primative.h"
-#include <mesh3d.h>
-
+#include <rendering/triangle.h>
+#include <rendering/shader.h>
 
 
 enum Uniforms {
@@ -253,5 +252,3 @@ public:
 		return node_index;
 	}
 };
-
-#endif

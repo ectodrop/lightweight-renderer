@@ -40,7 +40,7 @@ void mouse_callback(GLFWwindow* window, double xPos, double yPos) {
 		float dy = yPos - mouse_drag_start.y;
 		//std:: cout << dx << " " << dy <<  std::endl;
 		float sensitivity = 0.1f;
-		camera.rotate(dy * -1.0f * sensitivity, dx * sensitivity);
+		camera.Rotate(dy * -1.0f * sensitivity, dx * sensitivity);
 	}
 }
 
@@ -56,7 +56,7 @@ void mouse_button_callback(GLFWwindow* window, int button, int action, int mod) 
 		}
 		if (action == GLFW_RELEASE) {
 			mouse_dragging = false;
-			camera.lockRotation();
+			camera.LockRotation();
 		}
 	}
 }
@@ -70,69 +70,34 @@ void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
 		camera.fov = 45.0f;
 	}
 }
-void processInput(GLFWwindow* window) {
-	float movementSpeed = 0.5f * deltaTime;
-	if (glfwGetKey(window, GLFW_KEY_LEFT_CONTROL) == GLFW_PRESS) {
-		movementSpeed *= 5.0f;
-	}
-	if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) {
-		// simply sets a variable called "windowShoudlClose" tracked by the library
-		glfwSetWindowShouldClose(window, true);
-	}
-	if (glfwGetKey(window, GLFW_KEY_1) == GLFW_PRESS) {
-		glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-	}
-	if (glfwGetKey(window, GLFW_KEY_2) == GLFW_PRESS) {
-		glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-	}
-	if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS) {
-		camera.translate(glm::normalize(camera.front * glm::vec3(1,0,1)) *movementSpeed);
-	}
-	if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS) {
-		camera.translate(glm::normalize(camera.front * glm::vec3(1,0,1)) * -1.0f * movementSpeed);
-	}
-	if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS) {
-		camera.translate(camera.right * movementSpeed);
-	}
-	if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS) {
-		camera.translate(camera.right * -1.0f * movementSpeed);
-	}
-	if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS) {
-		camera.translate(camera.up * movementSpeed);
-	}
-	if (glfwGetKey(window, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS) {
-		camera.translate(camera.up * -1.0f * movementSpeed);
-	}
-
-	// std::cout << glm::to_string(camera.cameraPos) << std::endl;
-}
 
 
-unsigned int loadCubemap(std::vector<std::string> faces) {
-	stbi_set_flip_vertically_on_load(false);
-	unsigned int textureID;
-	glGenTextures(1, &textureID);
-	glBindTexture(GL_TEXTURE_CUBE_MAP, textureID);
-	int width, height, nrChannels;
-	for (int i = 0; i < 6; i++) {
-		unsigned char* data = stbi_load(faces[i].c_str(), &width, &height, &nrChannels, 0);
-		if (data) {
-			glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
-		}
-		else {
-			std::cout << "Failed to load texture: " << stbi_failure_reason() << std::endl;
-		}
-		stbi_image_free(data);
-	}
 
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
-
-	return textureID;
-}
+//unsigned int loadCubemap(std::vector<std::string> faces) {
+//	stbi_set_flip_vertically_on_load(false);
+//	unsigned int textureID;
+//	glGenTextures(1, &textureID);
+//	glBindTexture(GL_TEXTURE_CUBE_MAP, textureID);
+//	int width, height, nrChannels;
+//	for (int i = 0; i < 6; i++) {
+//		unsigned char* data = stbi_load(faces[i].c_str(), &width, &height, &nrChannels, 0);
+//		if (data) {
+//			glTexImage2D(GL_TEXTURE_CUBE_MAP_POSITIVE_X + i, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+//		}
+//		else {
+//			std::cout << "Failed to load texture: " << stbi_failure_reason() << std::endl;
+//		}
+//		stbi_image_free(data);
+//	}
+//
+//	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+//	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+//	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+//	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+//	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+//
+//	return textureID;
+//}
 
 std::vector<float> genTorus(float inner, float outer, std::vector<float>& vertices, std::vector<unsigned int>& indices) {
 	int slices = 40;
@@ -178,62 +143,6 @@ std::vector<float> genTorus(float inner, float outer, std::vector<float>& vertic
 	return vertices;
 }
 
-void getComputeWorkSize() {
-	int work_grp_cnt[3];
-
-	glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 0, &work_grp_cnt[0]);
-	glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 1, &work_grp_cnt[1]);
-	glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 2, &work_grp_cnt[2]);
-
-	printf("max global (total) work group counts x:%i y:%i z:%i\n",
-		work_grp_cnt[0], work_grp_cnt[1], work_grp_cnt[2]);
-
-
-	int work_grp_size[3];
-
-	glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_SIZE, 0, &work_grp_size[0]);
-	glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_SIZE, 1, &work_grp_size[1]);
-	glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_SIZE, 2, &work_grp_size[2]);
-
-	printf("max local (in one shader) work group sizes x:%i y:%i z:%i\n",
-		work_grp_size[0], work_grp_size[1], work_grp_size[2]);
-	int work_grp_inv;
-	glGetIntegerv(GL_MAX_COMPUTE_WORK_GROUP_INVOCATIONS, &work_grp_inv);
-	printf("max local work group invocations %i\n", work_grp_inv);
-}
-
-void WindowSetup(GLFWwindow** window) {
-	glfwInit();
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
-	glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-
-	*window = glfwCreateWindow(INITIAL_WIDTH, INITIAL_HEIGHT, "OpenGL", NULL, NULL);
-	if (window == NULL) {
-		std::cout << "Failed to create GLFW window" << std::endl;
-		glfwTerminate();
-		exit(-1);
-	}
-
-	// switches the current context so all changes are applied to "window"
-	// we could call this again with a different window
-	glfwMakeContextCurrent(*window);
-
-	if (!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
-	{
-		std::cout << "Failed to initialize GLAD" << std::endl;
-		exit(-1);
-	}
-	glViewport(0, 0, INITIAL_WIDTH, INITIAL_HEIGHT);
-
-	// sets up a callback function whenever the size of the window is changed
-	// callback is called once when it is first bound
-	glfwSetFramebufferSizeCallback(*window, framebuffer_size_callback);
-	//glfwSetInputMode(*window, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
-	//glfwSetCursorPosCallback(*window, mouse_callback);
-	//glfwSetScrollCallback(*window, scroll_callback);
-
-}
 int main()
 {
 	OpenGLEngine* engine = new OpenGLEngine();
