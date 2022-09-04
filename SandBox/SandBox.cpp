@@ -1,7 +1,7 @@
 // SandBox.cpp : This file contains the 'main' function. Program execution begins and ends there.
 //
 #include <any>
-
+#include <optional>
 #include <iostream>
 #include <Windows.h>
 #include <commdlg.h>
@@ -71,9 +71,10 @@ std::unique_ptr<int> GenPointer() {
 
 int main()
 {
-	std::function<void(std::any)> func = [](std::any a) {
-		cout << std::any_cast<int>(a) << endl;
+	std::function<void(optional<any>)> func = [](optional<any> a) {
+		cout << a.has_value() << endl;
+		cout << any_cast<int>(a.value_or(1)) << endl;
 	};
-	func(3);
+	func(std::nullopt);
 }
 

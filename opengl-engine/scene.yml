@@ -1,0 +1,57 @@
+name: name
+camera:
+  pos: [0, 0, 7.78693676]
+  pitch: -1.80000019
+  yaw: -0.899998486
+  center: [0.0100000016, 0.88499999, 0]
+meshes:
+  - visible: true
+    name: Scene root
+    position: [0, 0, 0]
+    euler_angles: [0, 0, 0]
+    scale: [1, 1, 1]
+  - visible: true
+    name: CornellBox-Original.obj
+    position: [0, 0, 0]
+    euler_angles: [0, 0, 0]
+    scale: [1, 1, 1]
+  - visible: true
+    name: leftWall
+    position: [0, 0, 0]
+    euler_angles: [0, 0, 0]
+    scale: [1, 1, 1]
+  - visible: true
+    name: rightWall
+    position: [0, 0, 0]
+    euler_angles: [0, 0, 0]
+    scale: [1, 1, 1]
+  - visible: true
+    name: floor
+    position: [0, 0, 0]
+    euler_angles: [0, 0, 0]
+    scale: [1, 1, 1]
+  - visible: true
+    name: ceiling
+    position: [0, 0, 0]
+    euler_angles: [0, 0, 0]
+    scale: [1, 1, 1]
+  - visible: true
+    name: backWall
+    position: [0, 0, 0]
+    euler_angles: [0, 0, 0]
+    scale: [1, 1, 1]
+  - visible: false
+    name: shortBox
+    position: [0, 0, 0]
+    euler_angles: [0, 0, 0]
+    scale: [1, 1, 1]
+  - visible: false
+    name: shortBox
+    position: [0, 0, 0]
+    euler_angles: [0, 0, 0]
+    scale: [1, 1, 1]
+  - visible: true
+    name: light
+    position: [0, 0, 0]
+    euler_angles: [0, 0, 0]
+    scale: [1, 1, 1]

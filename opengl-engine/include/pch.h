@@ -1,6 +1,7 @@
 #pragma once
 #define _USE_MATH_DEFINES
 #define STB_IMAGE_IMPLEMENTATION
+#include "constants.h"
 
 #include <iostream>
 #include <fstream>
@@ -12,6 +13,8 @@
 #include <stack>
 #include <functional>
 #include <any>
+#include <optional>
+#include <chrono>
 
 #include <assimp/Importer.hpp>      // C++ importer interface
 #include <assimp/scene.h>           // Output data structure

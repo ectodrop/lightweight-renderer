@@ -2,23 +2,30 @@
 in vec3 worldPos;
 in vec3 texcoord;
 in vec3 normal;
+in mat3 TBN;
 
-layout(location = 0) out vec4 color;
+out vec4 color;
 uniform float offset;
 uniform vec3 cameraPos;
 const float radius = 5.0f;
 
 uniform vec3 diffuseBase;
+uniform bool hasDiffuseMap;
 uniform sampler2D diffuseMap;
+uniform sampler2D normalMap;
 
-vec3 lightPos = vec3(5,5,5);
+vec3 lightDir = vec3(-1,-1,-1);
 
 void main() {
   // vec4 objectColor = texture(texture0, texcoord);
-  // vec4 objectColor = vec4(diffuseBase,1);
-
-  float diffuse = dot(normal, normalize(lightPos - worldPos));
-  //color = texture(diffuseMap, texcoord.xy) * objectColor;
+  vec4 objectColor = vec4(diffuseBase,1);
+  //vec4 texColor = texture(diffuseMap, texcoord.xy);
+  //vec3 texNormal = texture(normalMap, texcoord.xy).xyz;
+  //texNormal = texNormal * 2.0 - 1.0;
+  //texNormal = normalize(TBN * texNormal);
+  //vec4 ambient = vec4(0.2);
+  float lambert = dot(normal, normalize(-lightDir));
+  color = objectColor * abs(lambert);
   
-  color = vec4(texcoord, 1);
+  // color = vec4(normal, 1);
 }

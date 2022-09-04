@@ -4,16 +4,18 @@
 #include "./components/menu_bar.cpp"
 #include "./components/model_view.cpp"
 #include "./components/scene_tree.cpp"
+#include "./components/render_result.cpp"
+#include "./components/performance_dialog.cpp"
+#include "./components/bvh_debug.cpp"
 
 class UIContainer {
 	ImGuiIO* _io;
 	GLFWwindow* _window;
-	inline static std::map<std::string, std::function<void(std::any)>> _ui_callbacks;
-	inline static std::map<std::string, std::any> _ui_variables;
+	inline static std::map<std::string, std::function<void(std::optional<std::any>)>> _ui_callbacks;
+	inline static std::map<std::string, std::optional<std::any>> _ui_variables;
 	std::vector<UIComponent *> _components;
 	UIComponent* _menubar;
 
-	int count = 0;
 	static void FramebufferSizeCallback(GLFWwindow* window, int width, int height) {
 		//glViewport(0, 0, width, height);
 		//_ui_callbacks["resize-window"](glm::vec2(width, height));
@@ -36,14 +38,21 @@ public:
 	void InitComponents() {
 		_menubar = new MenuBarComponent(_ui_callbacks, _ui_variables);
 		AddComponent(new ModelViewComponent(_ui_callbacks, _ui_variables));
+		AddComponent(new RenderResultComponent(_ui_callbacks, _ui_variables));
 		AddComponent(new SceneTreeComponent(_ui_callbacks, _ui_variables));
+		AddComponent(new PerformanceDialogComponent(_ui_callbacks, _ui_variables));
+		AddComponent(new BVHDebugComponent(_ui_callbacks, _ui_variables));
 	}
-	void UISetVar(std::string var_name, std::any a) {
+	void UISetVar(std::string var_name, std::optional<std::any> a) {
 		_ui_variables[var_name] = a;
 	}
 	template <typename T>
 	void UISetCallback(std::string callback_name, std::function<void(T)> callback) {
-		_ui_callbacks[callback_name] = [=](std::any a) {callback(std::any_cast<T>(a)); };
+		_ui_callbacks[callback_name] = [=](std::optional<std::any> a) {
+			if (a.has_value()) {
+				callback(std::any_cast<T>(a.value()));
+			}
+		};
 	}
 
 	void PreRender() {
@@ -58,11 +67,6 @@ public:
 		ImGui::ShowDemoWindow();
 		for (auto& component : _components) {
 			component->Render();
-		}
-		
-		if (_io->MouseWheel) {
-			count++;
-			std::cout << _io->MouseWheel << std::endl;
 		}
 
 		ImGui::Render();

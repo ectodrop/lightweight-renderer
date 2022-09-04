@@ -4,7 +4,6 @@
 #include "./mesh3d.h"
 #include "./triangle.h"
 #include "./camera.h"
-#include <accel/bvh.h>
 
 class Scene {
 private:
@@ -16,7 +15,7 @@ public:
     std::vector<int> _Triangle_Mesh_Map;
 
     Scene() {
-        _camera = new Camera(glm::vec3(1.0f, 1.0f, 2.0f),
+        _camera = new Camera(glm::vec3(0.0f, 0.0f, 2.0f),
             glm::vec3(0.0f, 0.0f, -1.0f),
             glm::vec3(0.0f, 1.0f, 0.0f),
             INITIAL_WIDTH,

@@ -1,31 +1,74 @@
 #version 460 core
 #extension GL_ARB_gpu_shader_int64 : enable
 #extension AMD_gpu_shader_int64 : enable
-layout(local_size_x = 1, local_size_y = 1, local_size_z = 1) in;
-layout(rgba32f, binding = 0) uniform image2D img_output;
+layout(local_size_x = 4, local_size_y = 4, local_size_z = 1) in;
+layout(rgba32f, binding = 0) writeonly uniform image2D img_output;
+layout(rgba32f, binding = 1) uniform image2D img_accum;
 const float PI = 3.14159265;
 
 #define QUAD 0
 #define SPHERE 1
 #define MAX_DISTANCE 100000
 #define EPS 0.001
-uniform mat3 camera_rotation;
+uniform mat4 clipToWorld;
 uniform vec3 camera_position;
+uniform bool camera_moved;
 
+struct Vertex {
+	vec4 pos;
+	vec4 normal;
+	vec4 tangent;
+	vec4 bitangent;
+	vec4 texcoord;
+};
 
-// 1D
-uniform isamplerBuffer indices;
-// 3D
-uniform samplerBuffer vertices;
-uniform samplerBuffer normals;
-uniform samplerBuffer texcoords;
+struct BVHNode {
+	int startPrim;
+	int numPrims;
+	int left;
+	int right;
+	vec4 bmin;
+	vec4 bmax;
+};
+struct Material{
+	vec3 diffuse;
+	int diffuse_index;
+	vec3 specular;
+	int specular_index;
+	vec3 normal;
+	int normal_index;
+	vec3 emissive;
+	int emissive_index;
+};
 
-// vec3(v1_id, v2_id, v3_id)
-uniform isamplerBuffer triangles;
+struct Triangle {
+	unsigned int vertex0, vertex1, vertex2, mesh_id;
+};
 
-// 4D
-//{ vec4(start_prim, num_prims, left, right), vec4(bmin, _), vec4(bmax, _)
-uniform samplerBuffer BVH;
+layout(std430, binding = 0) readonly buffer VerticesSSBO
+{
+    Vertex vertex_data[];
+};
+
+layout(std430, binding = 1) readonly buffer BVHSSBO
+{
+    BVHNode bvh_nodes[];
+};
+
+layout(std430, binding = 2) readonly buffer IndexSSBO
+{
+    int index_data[];
+};
+
+layout(std430, binding = 3) readonly buffer TriangleSSBO
+{
+    Triangle triangle_data[];
+};
+
+layout(std430, binding = 4) readonly buffer MaterialSSBO
+{
+    Material material_data[];
+};
 
 uniform float u_time;
 struct Ray {
@@ -33,11 +76,6 @@ struct Ray {
 	vec3 dir;
 };
 
-struct Material {
-	vec3 albedo;
-	vec3 reflectivity;
-	vec3 emission;
-};
 
 struct Plane {
 	vec3 pos;
@@ -60,16 +98,7 @@ struct RayHit {
 	Material mat;
 };
 
-struct BVHNode {
-	int num_prims, start_prim;
-	int left, right;
-	vec3 bmin, bmax; // bounds
-};
 const float MAX_DIST = 1000000;
-Sphere spheres[100];
-int num_spheres = 0;
-Plane planes[10];
-int num_planes = 0;
 
 Plane light_source;
 
@@ -82,9 +111,18 @@ uint64_t rand_pcg()
     uint64_t word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
     return (word >> 22u) ^ word;
 }
-
+uint64_t wang_hash(uint64_t seed)
+{
+    seed = (seed ^ 61) ^ (seed >> 16);
+    seed *= 9;
+    seed = seed ^ (seed >> 4);
+    seed *= 0x27d4eb2d;
+    seed = seed ^ (seed >> 15);
+    return seed;
+}
 float randFloat() {
-	return float(rand_pcg() & 0x00ffffffu)/float(0x00ffffffu);
+	rng_state = wang_hash(rng_state);
+	return float(rng_state & 0x00ffffffu)/float(0x00ffffffu);
 }
 /*
 gets the normalized device coordinates
@@ -95,21 +133,6 @@ vec3 getNDC(ivec2 screenCoord, int w, int h) {
 	return vec3(float(2*screenCoord.x - w)/w, float(2*screenCoord.y - h)/h, 0.0f);
 }
 
-BVHNode getNode(int index) {
-	int node_size = 3;
-	BVHNode node;
-	node.start_prim = int(texelFetch(BVH, index * node_size).x);
-	node.num_prims =  int(texelFetch(BVH, index * node_size).y);
-	node.left =       int(texelFetch(BVH, index * node_size).z);
-	node.right =      int(texelFetch(BVH, index * node_size).w);
-	node.bmin =       texelFetch(BVH, index * node_size + 1).xyz; 
-	node.bmax =       texelFetch(BVH, index * node_size + 2).xyz; 
-	return node;
-}
-
-vec3 getVertex(int index) {
-	return texelFetch(vertices, index).xyz;
-}
 
 bool AABBIntersect(Ray r, vec3 bmin, vec3 bmax, out float t) {
 	vec3 invdir = 1.0 / r.dir;
@@ -127,10 +150,10 @@ bool AABBIntersect(Ray r, vec3 bmin, vec3 bmax, out float t) {
 	return t >= 0.0f;
 }
 // primative holds the indicies for the vertices
-bool IntersectTri(Ray ray, ivec3 primative, out float t) {
-	vec3 p0 = getVertex(primative.x);
-	vec3 p1 = getVertex(primative.y);
-	vec3 p2 = getVertex(primative.z);
+bool IntersectTri(Ray ray, Triangle triangle, out float t) {
+	vec3 p0 = vertex_data[triangle.vertex0].pos.xyz;
+	vec3 p1 = vertex_data[triangle.vertex1].pos.xyz;
+	vec3 p2 = vertex_data[triangle.vertex2].pos.xyz;
 
 	const vec3 e0 = p1 - p0;
 	const vec3 e1 = p0 - p2;
@@ -142,32 +165,34 @@ bool IntersectTri(Ray ray, ivec3 primative, out float t) {
 	barycentricCoord.y = dot( i, e1 );
 	barycentricCoord.z = dot( i, e0 );
 	barycentricCoord.x = 1.0 - (barycentricCoord.z + barycentricCoord.y);
-	float hit   = dot( triangleNormal, e2 );
+	t   = dot( triangleNormal, e2 );
 
-	return  /*(hit < ray.tmax) && */ (hit > 0.000001) && all(greaterThanEqual(barycentricCoord, vec3(0.0)));
+	return  /*(hit < ray.tmax) && */ (t > 0.000001) && all(greaterThanEqual(barycentricCoord, vec3(0.0)));
 }
 
-int BVHIntersect(Ray ray) {
+int BVHIntersect(Ray ray, out RayHit info) {
 	// TODO implement depth
-	float min_dist = 10000000;
+	float min_dist = 10000;
 	int node_index = -1;
 	int min_node = -1;
-	int nodes_to_visit[64];
+	int nodes_to_visit[128];
 	int current_node = 0;
 	nodes_to_visit[current_node] = 0;
 	current_node++;
 	while (current_node > 0) {
 		current_node--;
 		int node_index = nodes_to_visit[current_node];
-		BVHNode node = getNode(node_index);
+		BVHNode node = bvh_nodes[node_index];
 		float dist;
-		if (AABBIntersect(ray, node.bmin, node.bmax, dist)) {
-			if (node.num_prims <= 1) {
-				int tri_index = texelFetch(indices, node.start_prim).x;
-				ivec3 prim = texelFetch(triangles, tri_index).xyz;
-				if (IntersectTri(ray, prim, dist) && dist < min_dist) {
-					min_dist = dist;
-					min_node = node_index;
+		if (AABBIntersect(ray, node.bmin.xyz, node.bmax.xyz, dist)) {
+			if (node.numPrims <= 1) {
+				int tri_index = index_data[node.startPrim];
+				Triangle prim = triangle_data[tri_index];
+				if (IntersectTri(ray, prim, dist)) {
+					if (dist < min_dist) {
+						min_dist = dist;
+						min_node = node_index;
+					}
 				}
 			}
 			else {
@@ -175,13 +200,19 @@ int BVHIntersect(Ray ray) {
 					nodes_to_visit[current_node] = node.left;
 					current_node++;
 				}
-
 				if (node.right > 0) {
 					nodes_to_visit[current_node]= node.right;
 					current_node++;
 				}
 			}
 		}
+	}
+	if (min_node >= 0) {
+		int tri_index = index_data[bvh_nodes[min_node].startPrim];
+		Triangle tri = triangle_data[tri_index];
+		info.normal = ((vertex_data[tri.vertex0].normal + vertex_data[tri.vertex1].normal + vertex_data[tri.vertex2].normal)/3.0f).xyz;
+		info.pos = ray.origin + ray.dir * min_dist;
+		info.mat = material_data[tri.mesh_id];
 	}
 	return min_node;
 }
@@ -193,11 +224,11 @@ vec3 sampleGeometry(Plane plane, out RayHit hit) {
 	hit.mat = plane.mat;
 	hit.normal = plane.normal;
 	hit.pos =  plane.pos + plane.right * dx + cross(plane.normal, plane.right) * dy;
-	return hit.mat.emission;
+	return hit.mat.emissive.xyz;
 }
 
 vec3 randOffset(vec3 vec) {
-	float offset = 75;
+	float offset = 200;
 	float dx = randFloat();
 	float dy = randFloat();
 	return vec3(vec.x + (dx/offset - dx/(offset*2)), vec.y + (dy/offset-dy/(offset*2)), vec.z);
@@ -224,15 +255,17 @@ vec4 trace(Ray ray, vec4 default_color, int bounces) {
 	vec3 mask = vec3(1);
 	float prr = 1; // russian roulette
 	for (int i = 0; i < bounces+1; i++) {
-		if (BVHIntersect(ray) < 0) {
-			//accum += default_color.rgb * mask;
+		if (BVHIntersect(ray, info) < 0) {
+			accum += default_color.rgb * mask;
 			break;
 		}
+		accum += info.mat.emissive.rgb *  mask;
+
+		/*
 		vec3 surface_emission = info.mat.emission;
 		if (i == 0) {
 			accum += surface_emission * mask;
 		};
-		// accum += info.mat.emission * mask;
 		RayHit light_hit;
 		vec3 direct = sampleGeometry(light_source, light_hit);
 		vec3 sample_pos = light_hit.pos;
@@ -250,11 +283,10 @@ vec4 trace(Ray ray, vec4 default_color, int bounces) {
 			vec3 r = (direct * (info.mat.albedo/PI) * abs(dot(info.normal, light_dir))) * ( P *area);
 			accum += r * mask;
 		}
-		
+		*/
 		//vec3 reflect_dir = normalize(reflect(ray.dir, info.normal));
 		vec3 reflect_dir = normalize(randVectorInHemisphere(info.normal));
-		ray = Ray(info.pos, reflect_dir);
-		
+		ray = Ray(info.pos + info.normal * EPS, reflect_dir);
 		if (i > 3) {
 			prr = max(mask.x, max(mask.y, mask.z));
 			prr = max(1, prr);
@@ -265,10 +297,10 @@ vec4 trace(Ray ray, vec4 default_color, int bounces) {
 		}
 
 		float pdf = 1/(2*PI);
-		vec3 brdf = info.mat.albedo / PI; 
+		vec3 brdf = info.mat.diffuse.rgb /PI;//info.mat.albedo / PI; 
 		mask *= brdf * dot(reflect_dir, info.normal) / (pdf);
 	}
-	return vec4(accum,1);
+	return vec4(accum, 1);
 }
 
 RayHit discard_hit;
@@ -277,24 +309,23 @@ void main() {
 	vec4 bg_color = vec4(0.1, 0.2, 0.3, 1.0);
 	vec4 pixel = bg_color;
 	ivec2 dim = imageSize(img_output);
+	vec4 accum_color = vec4(0);
+	if (!camera_moved) {
+		accum_color = imageLoad(img_accum, pixel_coords);
+	}
 	// set starting seed for random
-	rng_state = pixel_coords.x * dim.x * + pixel_coords.y;
-
+	int width = int(gl_NumWorkGroups.x * gl_WorkGroupSize.x);
+	rng_state = pixel_coords.y * width + pixel_coords.x;
+	rng_state *= int(u_time * 1000);
 	// vec3 ray_origin = getNDC(pixel_coords, dim.x, dim.y);
 	vec3 ray_origin = getNDC(pixel_coords, dim.x, dim.y);
-	vec3 ray_dir = vec3(ray_origin.xy, -1.0);
-	Ray camera_ray = Ray(ray_origin + camera_position + vec3(0,0,3), camera_rotation * ray_dir);
-	float d;
-	float tri = BVHIntersect(camera_ray);//AABBIntersect(camera_ray, vec3(-1), vec3(1), d);
-	// BVHIntersect(camera_ray);
-	if (tri >= 0) {
-		pixel = vec4(1);
-	}
-	int samples = 4;
-	for (int i = 0; i < samples; i++) {
-		// pixel += trace(Ray(ray.origin, randOffset(ray.dir)), bg_color, 3);
-	}
-	// pixel /= samples;
-	BVHNode node =getNode(1);
-	imageStore(img_output, pixel_coords, pixel);
+	vec3 ray_dir = normalize(vec3(clipToWorld * vec4(ray_origin.xy, 1.0, 1.0)));
+	Ray camera_ray = Ray(camera_position, ray_dir);
+	pixel = trace(Ray(camera_ray.origin, randOffset(camera_ray.dir)), bg_color, 3);
+	// pixel = vec4(pow(pixel.rgb, vec3(1/2.2)), 1);
+	float gamma = 2.2f;
+	vec4 updated_accum = accum_color + pixel;
+	imageStore(img_accum, pixel_coords, updated_accum);
+	imageStore(img_output, pixel_coords, vec4(pow(updated_accum.rgb/updated_accum.w, vec3(1/gamma)), 1));
+	// imageStore(img_output, pixel_coords, vec4(abs(vertex_data[0].pos.xyz), 1));
 }

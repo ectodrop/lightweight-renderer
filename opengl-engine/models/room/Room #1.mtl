@@ -107,7 +107,6 @@ Ke 0.000000 0.000000 0.000000
 Ni 1.000000
 d 1.000000
 illum 3
-map_Kd camera-lens-icon.jpg
 
 newmtl Mat.6
 Ns 99.999988

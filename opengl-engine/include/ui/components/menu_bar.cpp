@@ -1,51 +1,43 @@
 #pragma once
 #include <ui/ui_component.h>
-
+#include <windows_dialog.h>
 class MenuBarComponent : public UIComponent {
 	using UIComponent::UIComponent;
-
+public:
 	void Render() override {
 		if (ImGui::BeginMainMenuBar()) {
 			if (ImGui::BeginMenu("File")) {
 				if (ImGui::MenuItem("Import .obj")) {
-					// NEEDS TO HAVE MULTI-BYTE CHAR SET RATHER THAN UNICODE
-					const TCHAR* FilterSpec = "All Files(.)\0*.*\0";
-					const TCHAR* Title = "Open";
-					OPENFILENAME ofn = { 0 };
-					const TCHAR* myDir = "C:\\c_plus_plus_trial";
-					TCHAR szFileName[MAX_PATH] = { '\0' };
-					TCHAR szFileTitle[MAX_PATH] = { '\0' };
-
-
-					ofn.lpstrFile = szFileName;
-
-					/* fill in non-variant fields of OPENFILENAME struct. */
-					ofn.lStructSize = sizeof(OPENFILENAME);
-
-					ofn.hwndOwner = GetFocus();
-					ofn.lpstrFilter = FilterSpec;
-					ofn.lpstrCustomFilter = NULL;
-					ofn.nMaxCustFilter = 0;
-					ofn.nFilterIndex = 0;
-					ofn.nMaxFile = MAX_PATH;
-					// ofn.lpstrInitialDir = myDir; // Initial directory.
-					ofn.lpstrFileTitle = szFileTitle;
-					ofn.nMaxFileTitle = MAX_PATH;
-					ofn.lpstrTitle = Title;
-					ofn.Flags = OFN_PATHMUSTEXIST | OFN_FILEMUSTEXIST;
-
-
-					if (GetOpenFileName(&ofn) == 1) {
-						std::cout << szFileName << std::endl;
-						InvokeUICallback("loader-open-file", std::string(szFileName));
+					std::string file_name;
+					if (WindowsDialog::OpenFileDialog(file_name)) {
+						InvokeUICallback("loader-open-file", file_name);
 					}
-					else {
-						std::cout << "Failed to open file" << std::endl;
+				}
+				if (ImGui::MenuItem("Save Scene")) {
+					std::string file_name;
+					if (WindowsDialog::OpenSaveDialog(file_name)) {
+						InvokeUICallback("export-scene", file_name);
 					}
+				}
+				ImGui::EndMenu();
+			}
+			if (ImGui::BeginMenu("Render")) {
+				if (ImGui::MenuItem("render path traced scene")) {
+					_is_rendering_scene = !_is_rendering_scene;
+					InvokeUICallback("render-traced-scene", _is_rendering_scene);
+				}
+				ImGui::EndMenu();
+			}
+			if (ImGui::BeginMenu("Debug")) {
+				if (ImGui::MenuItem("recompile shaders")) {
+					InvokeUICallback("recompile-shaders", 0);
 				}
 				ImGui::EndMenu();
 			}
 			ImGui::EndMainMenuBar();
 		}
 	}
+private:
+	bool _is_rendering_scene = false;
+	
 };

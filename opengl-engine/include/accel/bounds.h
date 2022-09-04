@@ -29,42 +29,19 @@ struct Bound {
 	}
 
 	bool AABBIntersect(Ray r, float& t) {
-		float tmin, tmax, tymin, tymax, tzmin, tzmax;
-		glm::vec3 bounds[2] = { bmin, bmax };
-		glm::vec3 invdir = 1.0f / r.dir;
-		glm::bvec3 sign(invdir.x < 0, invdir.y < 0, invdir.z < 0);
-		tmin = (bounds[sign[0]].x - r.origin.x) * invdir.x;
-		tmax = (bounds[1 - sign[0]].x - r.origin.x) * invdir.x;
-		tymin = (bounds[sign[1]].y - r.origin.y) * invdir.y;
-		tymax = (bounds[1 - sign[1]].y - r.origin.y) * invdir.y;
+		glm::vec3 invdir = glm::vec3(1.0) / r.dir;
 
-		if ((tmin > tymax) || (tymin > tmax))
-			return false;
+		glm::vec3 f = (bmax - r.origin) * invdir;
+		glm::vec3 n = (bmin - r.origin) * invdir;
 
-		if (tymin > tmin)
-			tmin = tymin;
-		if (tymax < tmax)
-			tmax = tymax;
+		glm::vec3 tmax = max(f, n);
+		glm::vec3 tmin = min(f, n);
 
-		tzmin = (bounds[sign[2]].z - r.origin.z) * invdir.z;
-		tzmax = (bounds[1 - sign[2]].z - r.origin.z) * invdir.z;
+		float t1 = glm::min(tmax.x, glm::min(tmax.y, tmax.z));
+		float t0 = glm::max(tmin.x, glm::max(tmin.y, tmin.z));
 
-		if ((tmin > tzmax) || (tzmin > tmax))
-			return false;
-
-		if (tzmin > tmin)
-			tmin = tzmin;
-		if (tzmax < tmax)
-			tmax = tzmax;
-
-		t = tmin;
-
-		if (t < 0) {
-			t = tmax;
-			if (t < 0) return false;
-		}
-
-		return true;
+		t = (t1 >= t0) ? (t0 > 0.f ? t0 : t1) : -1.0;
+		return t >= 0.0f;
 	}
 
 	glm::vec3 extent() {

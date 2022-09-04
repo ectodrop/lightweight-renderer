@@ -7,6 +7,7 @@ public:
     glm::vec3 _Position, _Euler_Angles, _Scale;
     glm::mat4 _Model_Matrix = glm::mat4(1.0f);
     std::string _Mesh_Name;
+    bool _Visible;
     Material _Mesh_Material;
 
     Mesh3D(glm::vec3 position, glm::vec3 euler_angles, glm::vec3 scale) {
