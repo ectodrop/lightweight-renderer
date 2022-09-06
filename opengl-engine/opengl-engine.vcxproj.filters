@@ -1715,8 +1715,13 @@
     <None Include="external\glm\gtx\wrap.inl">
       <Filter>Header Files</Filter>
     </None>
+    <None Include="lib\assimp-vc142-mtd.exp" />
+    <None Include="lib\glfw3.pdb" />
+    <None Include="lib\yaml-cppd.pdb" />
   </ItemGroup>
   <ItemGroup>
-    <Library Include="yaml-cppd.lib" />
+    <Library Include="lib\yaml-cppd.lib" />
+    <Library Include="lib\assimp-vc142-mtd.lib" />
+    <Library Include="lib\glfw3.lib" />
   </ItemGroup>
 </Project>
