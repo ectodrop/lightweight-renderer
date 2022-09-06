@@ -19,6 +19,12 @@ public:
 						InvokeUICallback("export-scene", file_name);
 					}
 				}
+				if (ImGui::MenuItem("Load Scene")) {
+					std::string file_name;
+					if (WindowsDialog::OpenFileDialog(file_name)) {
+						InvokeUICallback("load-scene-file", file_name);
+					}
+				}
 				ImGui::EndMenu();
 			}
 			if (ImGui::BeginMenu("Render")) {

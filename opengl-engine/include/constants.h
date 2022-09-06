@@ -1,5 +1,5 @@
 #pragma once
 
-#define INITIAL_WIDTH 800
-#define INITIAL_HEIGHT 600
+#define INITIAL_WIDTH 1000
+#define INITIAL_HEIGHT 500
 

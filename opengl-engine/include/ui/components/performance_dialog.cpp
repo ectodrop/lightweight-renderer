@@ -26,7 +26,7 @@ public:
 				ImGui::Text("avg frame duration (last 1000ms): %f ms\n", _avg_last_second_frametime);
 				ImGui::Text("fps: %f fps\n", 1000 / d_time);
 				ImGui::Text("avg fps (last 1000ms): %f fps\n", 1000 / _avg_last_second_frametime);
-				ImGui::Text("compute workgroup count: (%f,%f,1)\n", GetUIVar<Scene*>("main_scene")->GetCamera()->width, GetUIVar<Scene*>("main_scene")->GetCamera()->height);
+				ImGui::Text("compute workgroup count: (%f,%f,1)\n", GetUIVar<Scene*>("main_scene")->GetCamera()->_Width, GetUIVar<Scene*>("main_scene")->GetCamera()->_Height);
 
 				if (ImGui::Button("toggle pause profile")) {
 					_prev_frame_time = d_time;

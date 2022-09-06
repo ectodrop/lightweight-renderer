@@ -113,8 +113,16 @@ public:
 		//glfwSetScrollCallback(*window, scroll_callback);
 
 	}
+
 	GLFWwindow* GetWindow() {
 		return _window;
 	}
 	
+	void GetWindowDimensions(int* out_width, int* out_height) {
+		glfwGetWindowSize(_window, out_width, out_height);
+	}
+
+	void SetWindowDimensions(int width, int height) {
+		glfwSetWindowSize(_window, width, height);
+	}
 };

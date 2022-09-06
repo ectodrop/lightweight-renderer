@@ -1,57 +1,100 @@
-name: name
+file_load_order: [C:\Users\h-yan\source\repos\opengl-engine\opengl-engine\models\cornell\CornellBox-Original.obj]
+window_size:
+  width: 1000
+  height: 500
 camera:
-  pos: [0, 0, 7.78693676]
-  pitch: -1.80000019
-  yaw: -0.899998486
-  center: [0.0100000016, 0.88499999, 0]
+  pos: [0, 0, 3.30242181]
+  pitch: 2.29999781
+  yaw: 1.99999976
+  center: [0.0195995253, 0.967697859, -0.195922464]
 meshes:
   - visible: true
     name: Scene root
     position: [0, 0, 0]
     euler_angles: [0, 0, 0]
     scale: [1, 1, 1]
+    material:
+      diffuse: [0.800000012, 0.800000012, 0.800000012]
+      specular: [1, 1, 1]
+      emissive: [0, 0, 0]
   - visible: true
     name: CornellBox-Original.obj
     position: [0, 0, 0]
     euler_angles: [0, 0, 0]
     scale: [1, 1, 1]
+    material:
+      diffuse: [0.800000012, 0.800000012, 0.800000012]
+      specular: [1, 1, 1]
+      emissive: [0, 0, 0]
   - visible: true
     name: leftWall
     position: [0, 0, 0]
     euler_angles: [0, 0, 0]
     scale: [1, 1, 1]
+    material:
+      diffuse: [0.629999995, 0.0649999976, 0.0500000007]
+      specular: [1, 1, 1]
+      emissive: [0, 0, 0]
   - visible: true
     name: rightWall
     position: [0, 0, 0]
     euler_angles: [0, 0, 0]
     scale: [1, 1, 1]
+    material:
+      diffuse: [0.140000001, 0.449999988, 0.0909999982]
+      specular: [1, 1, 1]
+      emissive: [0, 0, 0]
   - visible: true
     name: floor
     position: [0, 0, 0]
     euler_angles: [0, 0, 0]
     scale: [1, 1, 1]
+    material:
+      diffuse: [1, 1, 1]
+      specular: [1, 1, 1]
+      emissive: [0, 0, 0]
   - visible: true
     name: ceiling
     position: [0, 0, 0]
     euler_angles: [0, 0, 0]
     scale: [1, 1, 1]
+    material:
+      diffuse: [1, 1, 1]
+      specular: [1, 1, 1]
+      emissive: [0, 0, 0]
   - visible: true
     name: backWall
     position: [0, 0, 0]
     euler_angles: [0, 0, 0]
     scale: [1, 1, 1]
-  - visible: false
+    material:
+      diffuse: [1, 1, 1]
+      specular: [1, 1, 1]
+      emissive: [0, 0, 0]
+  - visible: true
     name: shortBox
     position: [0, 0, 0]
     euler_angles: [0, 0, 0]
     scale: [1, 1, 1]
-  - visible: false
+    material:
+      diffuse: [1, 1, 1]
+      specular: [1, 1, 1]
+      emissive: [0, 0, 0]
+  - visible: true
     name: shortBox
     position: [0, 0, 0]
     euler_angles: [0, 0, 0]
     scale: [1, 1, 1]
+    material:
+      diffuse: [1, 1, 1]
+      specular: [1, 1, 1]
+      emissive: [0, 0, 0]
   - visible: true
     name: light
     position: [0, 0, 0]
     euler_angles: [0, 0, 0]
     scale: [1, 1, 1]
+    material:
+      diffuse: [1, 1, 1]
+      specular: [1, 1, 1]
+      emissive: [17, 12, 4]

@@ -45,7 +45,7 @@ public:
 		_Shader->setVec3("camera_position", _Scene->GetCamera()->GetPosition());
 		_Shader->setFloat("u_time", glfwGetTime());
 		_Shader->setBool("camera_moved", _Scene->GetCamera()->MovedThisFrame());
-		_Shader->useCompute(_Scene->GetCamera()->width/4, _Scene->GetCamera()->height/4, 1);
+		_Shader->useCompute(_Scene->GetCamera()->_Width/4, _Scene->GetCamera()->_Height/4, 1);
 		//glFinish();
 		//glMemoryBarrier(GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
 		//auto t2 = std::chrono::high_resolution_clock::now();
@@ -72,7 +72,7 @@ private:
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, _Scene->GetCamera()->width, _Scene->GetCamera()->height, 0, GL_RGBA, GL_FLOAT,
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, _Scene->GetCamera()->_Width, _Scene->GetCamera()->_Height, 0, GL_RGBA, GL_FLOAT,
 			NULL);
 		glBindImageTexture(0, _tex_output, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA32F);
 
@@ -82,7 +82,7 @@ private:
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, _Scene->GetCamera()->width, _Scene->GetCamera()->height, 0, GL_RGBA, GL_FLOAT,
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, _Scene->GetCamera()->_Width, _Scene->GetCamera()->_Height, 0, GL_RGBA, GL_FLOAT,
 			NULL);
 		glBindImageTexture(1, _tex_accum, 0, GL_FALSE, 0, GL_READ_WRITE, GL_RGBA32F);
 	}

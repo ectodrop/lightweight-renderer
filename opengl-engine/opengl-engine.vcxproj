@@ -439,7 +439,6 @@
       </SubType>
     </ClInclude>
     <ClInclude Include="include\loader.h" />
-    <ClInclude Include="include\quad.h" />
     <ClInclude Include="include\pch.h" />
     <ClInclude Include="include\rendering\scene.h" />
     <ClInclude Include="include\rendering\mesh3d.h" />

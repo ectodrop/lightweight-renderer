@@ -3,8 +3,6 @@
 #include "constants.h"
 #include "loader.h"
 #include "input_source.h"
-#include "quad.h"
-#include <yaml-cpp/yaml.h>
 #include <ui/ui_master.h>
 #include <rendering/shader.h>
 #include <rendering/camera.h>
@@ -28,49 +26,60 @@ static void OpenGLLogMessage(GLenum source, GLenum type, GLuint id, GLenum sever
 		break;
 	}
 }
+static void GetComputeWorkSize() {
+	int work_grp_cnt[3];
 
+	glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 0, &work_grp_cnt[0]);
+	glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 1, &work_grp_cnt[1]);
+	glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 2, &work_grp_cnt[2]);
+
+	printf("max global (total) work group counts x:%i y:%i z:%i\n",
+		work_grp_cnt[0], work_grp_cnt[1], work_grp_cnt[2]);
+
+
+	int work_grp_size[3];
+
+	glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_SIZE, 0, &work_grp_size[0]);
+	glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_SIZE, 1, &work_grp_size[1]);
+	glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_SIZE, 2, &work_grp_size[2]);
+
+	printf("max local (in one shader) work group sizes x:%i y:%i z:%i\n",
+		work_grp_size[0], work_grp_size[1], work_grp_size[2]);
+	int work_grp_inv;
+	glGetIntegerv(GL_MAX_COMPUTE_WORK_GROUP_INVOCATIONS, &work_grp_inv);
+	printf("max local work group invocations %i\n", work_grp_inv);
+}
 YAML::Emitter& operator << (YAML::Emitter& out, glm::vec3 vec) {
 	out << YAML::Flow;
 	out << YAML::BeginSeq << vec.x << vec.y << vec.z << YAML::EndSeq;
 	return out;
 }
+namespace YAML {
+	template<>
+	struct convert<glm::vec3> {
+		static Node encode(const glm::vec3& vec) {
+			Node node;
+			node.push_back(vec.x);
+			node.push_back(vec.y);
+			node.push_back(vec.z);
+			return node;
+		}
+
+		static bool decode(const Node& node, glm::vec3& vec) {
+			if (!node.IsSequence() || node.size() != 3) {
+				return false;
+			}
+
+			vec.x = node[0].as<float>();
+			vec.y = node[1].as<float>();
+			vec.z = node[2].as<float>();
+			return true;
+		}
+	};
+}
 
 
 class OpenGLEngine {
-
-	float _delta_time = 0.0f, _last_frame = 0.0f;
-	UIContainer* _ui_container;
-	Scene* _scene;
-	RasterRenderer* _raster_renderer;
-	PathtraceRenderer* _path_tracer_renderer;
-	Loader* _loader;
-	InputSource* _input_source;
-
-	bool _accumulate_samples = false;
-
-	void GetComputeWorkSize() {
-		int work_grp_cnt[3];
-
-		glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 0, &work_grp_cnt[0]);
-		glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 1, &work_grp_cnt[1]);
-		glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_COUNT, 2, &work_grp_cnt[2]);
-
-		printf("max global (total) work group counts x:%i y:%i z:%i\n",
-			work_grp_cnt[0], work_grp_cnt[1], work_grp_cnt[2]);
-
-
-		int work_grp_size[3];
-
-		glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_SIZE, 0, &work_grp_size[0]);
-		glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_SIZE, 1, &work_grp_size[1]);
-		glGetIntegeri_v(GL_MAX_COMPUTE_WORK_GROUP_SIZE, 2, &work_grp_size[2]);
-
-		printf("max local (in one shader) work group sizes x:%i y:%i z:%i\n",
-			work_grp_size[0], work_grp_size[1], work_grp_size[2]);
-		int work_grp_inv;
-		glGetIntegerv(GL_MAX_COMPUTE_WORK_GROUP_INVOCATIONS, &work_grp_inv);
-		printf("max local work group invocations %i\n", work_grp_inv);
-	}
 public:
 	OpenGLEngine() {
 		Init();
@@ -127,12 +136,15 @@ public:
 		});
 
 		_ui_container->UISetCallback<std::string>("loader-open-file", [&](std::string path) {
-			_loader->LoadScene(path, _raster_renderer, _path_tracer_renderer, _scene);
+			bool success = _loader->LoadScene(path, _raster_renderer, _path_tracer_renderer, _scene);
+			if (success) {
+				_loaded_files.push_back(path);
+			}
 		});
 		
 		_ui_container->UISetCallback<glm::vec2>("resize-window", [&](glm::vec2 dim) {
-			_scene->GetCamera()->width = dim.x;
-			_scene->GetCamera()->height = dim.y;
+			_scene->GetCamera()->_Width = dim.x;
+			_scene->GetCamera()->_Height = dim.y;
 			_ui_container->UISetVar("scene_window_size", dim);
 		});
 
@@ -170,7 +182,19 @@ public:
 		_ui_container->UISetCallback<std::string>("export-scene", [&](std::string file_name) {
 			YAML::Emitter out;
 			out << YAML::BeginMap;
-			out << YAML::Key << "name" << YAML::Value << "name";
+			out << YAML::Key << "file_load_order" << YAML::Value << YAML::Flow << _loaded_files;
+
+			// window dimensions
+			int window_height, window_width;
+			_ui_container->GetWindowDimensions(&window_width, &window_height);
+			out << YAML::Key << "window_size";
+			out << YAML::Value;
+			{
+				out << YAML::BeginMap;
+				out << YAML::Key << "width" << YAML::Value << window_width;
+				out << YAML::Key << "height" << YAML::Value << window_height;
+				out << YAML::EndMap;
+			}
 
 			// camera
 			auto cam = _scene->GetCamera();
@@ -178,10 +202,10 @@ public:
 			out << YAML::Value;
 			{
 				out << YAML::BeginMap;
-				out << YAML::Key << "pos" << YAML::Value << cam->pos;
-				out << YAML::Key << "pitch" << YAML::Value << cam->pitch;
-				out << YAML::Key << "yaw" << YAML::Value << cam->yaw;
-				out << YAML::Key << "center" << YAML::Value << cam->center;
+				out << YAML::Key << "pos" << YAML::Value << cam->_pos;
+				out << YAML::Key << "pitch" << YAML::Value << cam->_pitch;
+				out << YAML::Key << "yaw" << YAML::Value << cam->_yaw;
+				out << YAML::Key << "center" << YAML::Value << cam->_center;
 				out << YAML::EndMap;
 			}
 			out << YAML::Key << "meshes";
@@ -195,6 +219,17 @@ public:
 					out << YAML::Key << "position" << YAML::Value << mesh->_Position;
 					out << YAML::Key << "euler_angles" << YAML::Value << mesh->_Euler_Angles;
 					out << YAML::Key << "scale" << YAML::Value << mesh->_Scale;
+
+					out << YAML::Key << "material";
+					out << YAML::Value;
+					{
+						auto mat = mesh->_Mesh_Material;
+						out << YAML::BeginMap;
+						out << YAML::Key << "diffuse" << YAML::Value << mat.Diffuse;
+						out << YAML::Key << "specular" << YAML::Value << mat.Specular;
+						out << YAML::Key << "emissive" << YAML::Value << mat.Emissive;
+						out << YAML::EndMap;
+					}
 					out << YAML::EndMap;
 				}
 				out << YAML::EndSeq;
@@ -204,6 +239,39 @@ public:
 			std::ofstream scene_file(file_name);
 			scene_file << out.c_str();
 			scene_file.close();
+		});
+
+		_ui_container->UISetCallback<std::string>("load-scene-file", [&](std::string file_name) {
+			YAML::Node yaml = YAML::LoadFile(file_name);
+			auto prev_files = yaml["file_load_order"];
+			for (int i = 0; i < prev_files.size(); i++) {
+				_loader->LoadScene(prev_files[i].as<std::string>(), _raster_renderer, _path_tracer_renderer, _scene);
+			}
+
+			int w = yaml["window_size"]["width"].as<int>();
+			int h = yaml["window_size"]["height"].as<int>();
+			_ui_container->SetWindowDimensions(w, h);
+
+			auto cam = yaml["camera"];
+			float p = cam["pitch"].as<float>(), y = cam["yaw"].as<float>();
+			glm::vec3 pos = cam["pos"].as<glm::vec3>(), center = cam["center"].as<glm::vec3>();
+			_scene->GetCamera()->InitSettings(pos, center, p, y);
+
+			auto meshes = yaml["meshes"];
+			for (int i = 0; i < meshes.size(); i++) {
+				auto mesh = meshes[i];
+				auto mat = mesh["material"];
+				_scene->_Meshes[i]->_Visible = mesh["visible"].as<bool>();
+				_scene->_Meshes[i]->_Mesh_Name= mesh["name"].as<std::string>();
+				_scene->_Meshes[i]->_Position = mesh["position"].as<glm::vec3>();
+				_scene->_Meshes[i]->_Euler_Angles = mesh["euler_angles"].as<glm::vec3>();
+				_scene->_Meshes[i]->_Scale = mesh["scale"].as<glm::vec3>();
+
+				_scene->_Meshes[i]->_Mesh_Material.Diffuse = mat["diffuse"].as<glm::vec3>();
+				_scene->_Meshes[i]->_Mesh_Material.Specular = mat["specular"].as<glm::vec3>();
+				_scene->_Meshes[i]->_Mesh_Material.Emissive = mat["emissive"].as<glm::vec3>();
+
+			}
 		});
 	}
 
@@ -250,4 +318,15 @@ public:
 	bool ShouldClose() {
 		return glfwWindowShouldClose(_ui_container->GetWindow());
 	}
+private:
+	float _delta_time = 0.0f, _last_frame = 0.0f;
+	UIContainer* _ui_container;
+	Scene* _scene;
+	RasterRenderer* _raster_renderer;
+	PathtraceRenderer* _path_tracer_renderer;
+	Loader* _loader;
+	InputSource* _input_source;
+
+	bool _accumulate_samples = false;
+	std::vector<std::string> _loaded_files;
 };

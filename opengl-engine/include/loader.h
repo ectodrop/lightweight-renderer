@@ -6,6 +6,53 @@
 
 
 class Loader {
+public:
+    bool LoadScene(std::string path, Renderer* raster_renderer, Renderer* pathtrace_renderer, Scene *scene_tree) {
+        Assimp::Importer importer;
+        _file_path = path;
+        const aiScene* ai_scene = importer.ReadFile(path,
+            aiProcess_Triangulate| 
+            aiProcess_JoinIdenticalVertices |
+            aiProcess_FlipUVs | 
+            aiProcess_GenNormals | 
+            aiProcess_GenUVCoords |
+            aiProcess_CalcTangentSpace |
+            aiProcess_FindDegenerates | // remove degenerated polygons from the import
+            aiProcess_FindInvalidData | // detect invalid model data, such as invalid normal vectors
+            aiProcess_ValidateDataStructure |
+            aiProcess_PreTransformVertices |
+            0
+        );
+
+        // std::cout << ai_scene->mNumMaterials << " " << ai_scene->mNumTextures << std::endl;
+        if (!ai_scene || ai_scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !ai_scene->mRootNode)
+        {
+            std::cout << "ERROR::ASSIMP::" << importer.GetErrorString() << std::endl;
+            return false;
+        }
+        _scene = scene_tree;
+        if (ai_scene->mRootNode != NULL) {
+            _cached_materials.clear();
+            if (_scene->_Meshes.size() == 0) {
+                // there should always be at least the scene root
+                _scene->MakeMesh("Scene root");
+            }
+            int mesh_id = TraverseScene(ai_scene->mRootNode, ai_scene);
+            _scene->_Meshes[mesh_id]->ResetModelMatrix();
+            _scene->AddMeshChild(0, mesh_id); // attach new parent mesh to scene root
+            _scene->UpdateMeshMatrices(0);
+        }
+
+        raster_renderer->SetData(_vertices, _normals, _tangents, _bitangents, _texcoords, _triangles, _textures);
+        raster_renderer->Init();
+
+        pathtrace_renderer->SetData(_vertices, _normals, _tangents, _bitangents, _texcoords, _triangles, _textures);
+        pathtrace_renderer->Init();
+
+        return true;
+        // tree = new BVH(_Triangles, _Vertices);
+        // tree->BuildBVH();
+    }
 private:
     std::vector<glm::vec3> _vertices;
     std::vector<glm::vec3> _normals;
@@ -38,7 +85,7 @@ private:
                 }
                 _scene->AddMeshChild(parent, child);
             }
-            
+
         }
         for (int i = 0; i < root_node->mNumMeshes; i++) {
             auto ai_mesh = scene->mMeshes[root_node->mMeshes[i]];
@@ -56,7 +103,7 @@ private:
         int num_vertices = _vertices.size();
         for (int v = 0; v < mesh->mNumVertices; v++) {
             glm::vec3 pos(mesh->mVertices[v].x, mesh->mVertices[v].y, mesh->mVertices[v].z);
-            _vertices.push_back(pos); 
+            _vertices.push_back(pos);
             //printf("(%f,%f,%f)\n", pos.x, pos.y, pos.z);
             if (mesh->HasNormals()) {
                 glm::vec3 normal(mesh->mNormals[v].x, mesh->mNormals[v].y, mesh->mNormals[v].z);
@@ -110,7 +157,7 @@ private:
         aiColor3D diffuse_col, emissive_col;
         mat->Get(AI_MATKEY_COLOR_DIFFUSE, diffuse_col);
         mesh_material.Diffuse = glm::vec3(diffuse_col.r, diffuse_col.g, diffuse_col.b);
-        
+
         mat->Get(AI_MATKEY_COLOR_EMISSIVE, emissive_col);
         mesh_material.Emissive = glm::vec3(emissive_col.r, emissive_col.g, emissive_col.b);
 
@@ -120,10 +167,10 @@ private:
         if (diffuse_file.length) {
             auto texture = scene->GetEmbeddedTexture(diffuse_file.C_Str());
             if (texture) {
-                
+
             }
             else {
-                std::string diffuse_path = _file_path.substr(0, _file_path.find_last_of("\\/")+1) + std::string(diffuse_file.C_Str());
+                std::string diffuse_path = _file_path.substr(0, _file_path.find_last_of("\\/") + 1) + std::string(diffuse_file.C_Str());
                 mesh_material.Diffuse_Index = LoadTexture(diffuse_path);
             }
         }
@@ -142,7 +189,7 @@ private:
     }
 
     int LoadTexture(std::string tex_path) {
-        
+
         int texture_index = _textures.size();
         stbi_set_flip_vertically_on_load(true);
         GLuint texture;
@@ -170,51 +217,5 @@ private:
         _textures.push_back(texture);
 
         return texture_index;
-    }
-public:
-    void LoadScene(std::string path, Renderer* raster_renderer, Renderer* pathtrace_renderer, Scene *scene_tree) {
-        Assimp::Importer importer;
-        _file_path = path;
-        const aiScene* ai_scene = importer.ReadFile(path,
-            aiProcess_Triangulate| 
-            aiProcess_JoinIdenticalVertices |
-            aiProcess_FlipUVs | 
-            aiProcess_GenNormals | 
-            aiProcess_GenUVCoords |
-            aiProcess_CalcTangentSpace |
-            aiProcess_FindDegenerates | // remove degenerated polygons from the import
-            aiProcess_FindInvalidData | // detect invalid model data, such as invalid normal vectors
-            aiProcess_ValidateDataStructure |
-            aiProcess_PreTransformVertices |
-            0
-        );
-
-        // std::cout << ai_scene->mNumMaterials << " " << ai_scene->mNumTextures << std::endl;
-        if (!ai_scene || ai_scene->mFlags & AI_SCENE_FLAGS_INCOMPLETE || !ai_scene->mRootNode)
-        {
-            std::cout << "ERROR::ASSIMP::" << importer.GetErrorString() << std::endl;
-            return;
-        }
-        _scene = scene_tree;
-        if (ai_scene->mRootNode != NULL) {
-            _cached_materials.clear();
-            if (_scene->_Meshes.size() == 0) {
-                // there should always be at least the scene root
-                _scene->MakeMesh("Scene root");
-            }
-            int mesh_id = TraverseScene(ai_scene->mRootNode, ai_scene);
-            _scene->_Meshes[mesh_id]->ResetModelMatrix();
-            _scene->AddMeshChild(0, mesh_id); // attach new parent mesh to scene root
-            _scene->UpdateMeshMatrices(0);
-        }
-        raster_renderer->SetData(_vertices, _normals, _tangents, _bitangents, _texcoords, _triangles, _textures);
-        raster_renderer->Init();
-
-        pathtrace_renderer->SetData(_vertices, _normals, _tangents, _bitangents, _texcoords, _triangles, _textures);
-        pathtrace_renderer->Init();
-
-
-        // tree = new BVH(_Triangles, _Vertices);
-        // tree->BuildBVH();
     }
 };
