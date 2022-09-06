@@ -2,3 +2,4 @@
 * text=auto
 opengl-engine/external/** linguist-vendored
 opengl-engine/src/glad.c linguist-vendored
+opengl-engine/models/** linguist-vendored
