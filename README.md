@@ -17,7 +17,7 @@
 # Todo
 - Implement more BSDFs (materials)
 - Optimize BVH traversals
-- Implement MIS to improve rate of convergence
+- Implement Multiple Importance Sampling (MIS) to improve rate of convergence
 
 
 ![image](https://user-images.githubusercontent.com/40843847/189490862-852fdd53-880c-4188-ba00-530579c78fdf.png)
