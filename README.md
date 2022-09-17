@@ -1,5 +1,5 @@
 # Pathtracing Engine
- rendering engine made with opengl
+ Lightweight rendering engine made with opengl
 ![image](https://user-images.githubusercontent.com/40843847/189490840-658f5362-0410-41fe-91bb-9037f8d44bc3.png)
 
 # Done
